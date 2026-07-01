@@ -1,12 +1,17 @@
-// Plantbase CLI — belépési pont (A6: üres váz).
-// Keretstruktúra: `ask <kérdés>` egyszeri lekérdezés + interaktív readline mód (kilépés: exit).
-// A tényleges logikát a B fázisok töltik fel: B1 echo, B2 LLM, B3 runSql.
+// Plantbase CLI — belépési pont (B1: echo, LLM nélkül).
+// `ask <kérdés>` egyszeri lekérdezés + interaktív readline mód (kilépés: exit).
+// A program visszaírja, amit beírtál (echo). A B2 fázis LLM-hívásra cseréli az echo-t.
 import { Command } from 'commander';
 import { createInterface } from 'node:readline';
+import { echo } from '@plantbase/core';
 
-// A6-ban még nincs valódi feldolgozás; helyőrző választ ad, hogy a csővezeték látható legyen.
-function handleQuestion(input: string): string {
-  return `[plantbase] (váz) beérkezett kérdés: ${input}`;
+// Egy kérdés feldolgozása + kiírása, beszédes hibakezeléssel (fail-fast az üres bemenetre).
+function answer(input: string): void {
+  try {
+    console.log(echo(input));
+  } catch (error) {
+    console.error(`Hiba: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function runInteractive(): void {
@@ -26,7 +31,7 @@ function runInteractive(): void {
       return;
     }
     if (text.length > 0) {
-      console.log(handleQuestion(text));
+      answer(text);
     }
     rl.prompt();
   });
@@ -49,7 +54,7 @@ program
   .description('Egyszeri kérdés a katalógusról')
   .argument('<kerdes>', 'a természetes nyelvű kérdés')
   .action((kerdes: string) => {
-    console.log(handleQuestion(kerdes));
+    answer(kerdes);
   });
 
 program
