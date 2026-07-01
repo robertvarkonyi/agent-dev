@@ -1,0 +1,33 @@
+{
+  "description": "Golden kérdéskészlet a Plantbase agent regressziós kiértékeléséhez. A `expects` a helyes válasz kritériuma (természetes nyelv, a grader ez alapján ítél); a `must_include` opcionális, kis/nagybetű-független kulcsszavak, amiknek szerepelniük kell; a `should_ask_back` azt jelzi, hogy a jó válasz VISSZAKÉRDEZ, nem találgat.",
+  "cases": [
+    {
+      "id": "kategoriak",
+      "question": "Milyen kategóriák vannak a kínálatban?",
+      "expects": "A katalógus kategóriáit sorolja fel (a listCategories toolból), pl. szobanövény, kaktusz, pozsgás, fűszer. Nem generál nyers SELECT-et.",
+      "must_include": ["kaktusz", "szobanövény"]
+    },
+    {
+      "id": "legolcsobb-kaktusz-raktaron",
+      "question": "Melyik a legolcsóbb kaktusz, ami raktáron van?",
+      "expects": "Egyetlen kaktusz kategóriájú, raktáron lévő (stock > 0) terméket ad meg a legalacsonyabb tényleges árral (COALESCE(sale_price, price)). Megnevezi és megadja az árat."
+    },
+    {
+      "id": "hazillatbarat-budzse",
+      "question": "Ajánlj két háziállat-barát szobanövényt 10000 Ft alatt.",
+      "expects": "Legfeljebb két, pet_safe = true, category = szobanövény terméket ajánl, amelyek tényleges ára 10000 Ft alatt van. Kiemeli az árat.",
+      "must_include": ["Ft"]
+    },
+    {
+      "id": "nincs-talalat-oszinte",
+      "question": "Van baobab fa a katalógusban?",
+      "expects": "ILIKE kereséssel néz rá a névre; ha nincs találat, ŐSZINTÉN megmondja, hogy nincs ilyen a katalógusban. Nem talál ki nem létező terméket."
+    },
+    {
+      "id": "ketertelmu-visszakerdez",
+      "question": "Állíts össze nekem egy növénycsomagot.",
+      "expects": "A kérés kétértelmű (hiányzik a büdzsé, a szoba adottsága, a darabszám), ezért VISSZAKÉRDEZ ezekre, mielőtt ajánlana. Nem találgat vaktában.",
+      "should_ask_back": true
+    }
+  ]
+}
