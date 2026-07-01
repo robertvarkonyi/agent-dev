@@ -48,4 +48,5 @@ products (
 
 <tools>
 - runSql(query): read-only SQL futtatás a katalóguson. A generált SQL-t mindig ezzel futtasd, ne csak kiírd.
+- listCategories(): a katalógus egyedi kategóriáit adja vissza. Ha a felhasználó a kategóriákra kérdez rá ("milyen kategóriák vannak?"), EZT hívd, ne generálj SELECT-et.
 </tools>`;

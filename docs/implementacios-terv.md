@@ -279,15 +279,261 @@ Cél: bekötjük a **`runSql` toolt**. Az agent a kérdésből **SQL-t ír**, le
 - **Determinista, izolált** tesztek; a DB-integrációs teszt a lokális Postgres ellen fut.
 - **Minden fázis végén** a fejlesztő manuálisan tesztel, mielőtt a következő lépés indul.
 
-## Kockázatok / nyitott pontok — utólagos megoldás
+## Kockázatok / nyitott pontok
 
-- **Assetek formátuma.** ✅ A seed TS (`plants.ts` + `seed.ts`, `@prisma/client`); a
-  `packages/db/prisma/` alá került, seedet nem generáltunk. Külön teszt/script nem érkezett.
-- **Prisma major.** ✅ A v7 breaking változása miatt **Prisma 6.19**-re esett a választás (a
-  kapott klasszikus seed így módosítás nélkül fut). Az A4 ezt tükrözi.
-- **Read-only role init.** ✅ Az A3 `initdb` scriptje hozza létre a role-t, és a `DEFAULT
-  PRIVILEGES` gondoskodik róla, hogy az A4-ben (Prisma migrációval) létrejövő `products`-ra is
-  legyen SELECT — élőben igazolva (a read-only role olvassa a katalógust).
-- **Node-verzió (új).** A toolchain Node ≥ 22.12-t igényelt; a projektet Node 22 LTS-hez
-  kötöttük (`.nvmrc` + `engines`).
+- **Assetek formátuma.** A kapott seed/teszt/script pontos formátuma (TS seed vs. SQL dump,
+  teszt-elrendezés) az A5-nél derül ki; a bekötést ahhoz igazítjuk (seedet nem generálunk).
+- **Prisma major.** A pontos Prisma verzió a legfrissebb stabilhoz igazodik (Context7-tel
+  ellenőrzött `prisma.config.ts` mintával); ha a generátor/CLI részletek térnek, az A4-nél
+  igazítunk.
+- **Read-only role init.** A role-t az A3 hozza létre; ha a séma migráció után jönne, a
+  `DEFAULT PRIVILEGES`/`GRANT SELECT` időzítését az A4 után is meg kell erősíteni.
+
+---
+
+# C) Bővítés — `listCategories` tool (új feature)
+
+> **Agentikus végrehajtóknak:** ajánlott sub-skill a `superpowers:subagent-driven-development`
+> (vagy `superpowers:executing-plans`), task-onként. A lépések checkbox (`- [ ]`) szintaxissal
+> követhetők. Spec: `docs/superpowers/specs/2026-07-01-list-categories-tool-design.md`.
+
+**Cél:** egy második, paraméter nélküli agent-tool (`listCategories`), amely a `products.category`
+egyedi, ábécésorrendbe rendezett értékeit adja vissza, ha a felhasználó a kategóriákra kérdez rá.
+
+**Megközelítés:** a `run-sql.ts` mintáját követjük — pure, unit-tesztelhető logika külön
+`kebab-case` fájlban, a tool-mechanika az `ask-agent.ts` kézzel írt loopjában marad. A lekérdezés a
+meglévő `runSql`-t hasznosítja újra (read-only pool + SELECT-guard), nincs új pool.
+
+**Kimenet:** csak a kategórianevek (distinct, rendezett). Darabszám/aggregáció nincs (YAGNI).
+
+Ág: `feat/list-categories-tool` (main-ről). Node 22 (`nvm use 22`) a pnpm előtt. Kis, fókuszált
+Conventional Commit-ok.
+
+## Globális megkötések (minden taskra érvényes)
+
+- **Node 22 LTS**: minden pnpm/nx parancs előtt `nvm use 22`.
+- **TypeScript strict**; publikus API-n explicit típus. Külső/DB-adat `unknown`, **nem** `any`;
+  szűkíts biztonságosan.
+- **Fájlnév** `kebab-case`, egy fájl egy felelősség. **Naming**: `camelCase` fv, `PascalCase` típus,
+  `UPPER_SNAKE` konstans.
+- **Nincs `console.log`** a termékkódban.
+- **Az agentnek adott promptok** XML-szerű tagekkel (`<tools>`).
+
+## Fájlszerkezet
+
+- **Létrehoz:** `packages/core/src/lib/list-categories.ts` — `CATEGORIES_SQL`, `extractCategories`
+  (pure), `listCategories` (async, `runSql`-t hív).
+- **Létrehoz:** `packages/core/src/lib/list-categories.spec.ts` — az `extractCategories` unit-tesztjei.
+- **Módosít:** `packages/core/src/lib/ask-agent.ts` — `LIST_CATEGORIES_TOOL` definíció, a `tools`
+  tömb bővítése, a tool-dispatch loop `listCategories` ága.
+- **Módosít:** `packages/core/src/lib/system-prompt.ts` — `<tools>` szekció bővítése.
+
+---
+
+### C1 — `extractCategories` pure logika (TDD)
+
+**Files:**
+- Create: `packages/core/src/lib/list-categories.spec.ts`
+- Create: `packages/core/src/lib/list-categories.ts`
+
+**Interfaces:**
+- Produces: `CATEGORIES_SQL: string`, `extractCategories(rows: unknown[]): string[]`,
+  `listCategories(): Promise<string[]>` (utóbbi implementációja a C2-ben zárul, de a fájl itt jön létre).
+
+- [ ] **1. lépés — Bukó teszt.** `packages/core/src/lib/list-categories.spec.ts`:
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { extractCategories } from './list-categories';
+
+describe('extractCategories', () => {
+  it('kinyeri és megőrzi a kategórianeveket a sorokból', () => {
+    const rows = [{ category: 'kaktusz' }, { category: 'pozsgás' }, { category: 'szobanövény' }];
+    expect(extractCategories(rows)).toEqual(['kaktusz', 'pozsgás', 'szobanövény']);
+  });
+
+  it('defenzíven dedupál', () => {
+    const rows = [{ category: 'kaktusz' }, { category: 'kaktusz' }, { category: 'fűszer' }];
+    expect(extractCategories(rows)).toEqual(['kaktusz', 'fűszer']);
+  });
+
+  it('kiszűri a nem-string / hiányzó category mezőt', () => {
+    const rows = [{ category: 'kaktusz' }, { category: null }, {}, { category: 42 }, { category: '' }];
+    expect(extractCategories(rows)).toEqual(['kaktusz']);
+  });
+
+  it('üres sorlistára üres tömb', () => {
+    expect(extractCategories([])).toEqual([]);
+  });
+});
+```
+
+- [ ] **2. lépés — Futtasd, bukjon.**
+  Run: `nvm use 22 && pnpm nx test core -- list-categories`
+  Expected: FAIL (`extractCategories is not a function` / nincs `./list-categories` modul).
+
+- [ ] **3. lépés — Minimál implementáció.** `packages/core/src/lib/list-categories.ts`:
+
+```ts
+import { runSql } from './run-sql.js';
+
+// A distinct kategóriák lekérdezése (rendezett). A runSql SELECT-guardja + a read-only role védi.
+export const CATEGORIES_SQL = 'SELECT DISTINCT category FROM products ORDER BY category';
+
+// A DB-ből jövő sorok megbízhatatlanok (unknown[]): a category string mezőt szűrjük ki,
+// a nem-string / üres értéket eldobjuk, és defenzíven dedupálunk. Sosem dob (fail-soft).
+export function extractCategories(rows: unknown[]): string[] {
+  const seen = new Set<string>();
+  const categories: string[] = [];
+  for (const row of rows) {
+    const value = (row as { category?: unknown }).category;
+    if (typeof value === 'string' && value.length > 0 && !seen.has(value)) {
+      seen.add(value);
+      categories.push(value);
+    }
+  }
+  return categories;
+}
+
+// A katalógus egyedi kategóriái. A meglévő runSql-t hasznosítja újra (read-only pool + guard).
+export async function listCategories(): Promise<string[]> {
+  const result = await runSql(CATEGORIES_SQL);
+  return extractCategories(result.rows);
+}
+```
+
+- [ ] **4. lépés — Futtasd, legyen zöld.**
+  Run: `nvm use 22 && pnpm nx test core -- list-categories`
+  Expected: PASS (mind a 4 teszt).
+
+- [ ] **5. lépés — Commit.**
+
+```bash
+git add packages/core/src/lib/list-categories.ts packages/core/src/lib/list-categories.spec.ts
+git commit -m "feat(core): add listCategories with extractCategories guard"
+```
+
+---
+
+### C2 — `listCategories` bekötése az agent-loopba
+
+**Files:**
+- Modify: `packages/core/src/lib/ask-agent.ts`
+
+**Interfaces:**
+- Consumes: `listCategories` a `./list-categories.js`-ből; `CATEGORIES_SQL` a naplózáshoz.
+
+- [ ] **1. lépés — Import kiegészítése.** A `run-sql.js` import mellé, `ask-agent.ts` tetején:
+
+```ts
+import { runSql } from './run-sql.js';
+import { listCategories, CATEGORIES_SQL } from './list-categories.js';
+```
+
+- [ ] **2. lépés — Tool-definíció.** A `RUN_SQL_TOOL` konstans után:
+
+```ts
+// A listCategories tool: paraméter nélküli, a katalógus egyedi kategóriáit adja vissza.
+const LIST_CATEGORIES_TOOL: Anthropic.Tool = {
+  name: 'listCategories',
+  description:
+    'A katalógus egyedi (distinct) kategóriáinak listája. Akkor hívd, ha a felhasználó a kategóriákra kérdez rá — ne generálj hozzá SQL-t.',
+  input_schema: {
+    type: 'object',
+    properties: {},
+  },
+};
+```
+
+- [ ] **3. lépés — A tool regisztrálása.** A loopon belüli `messages.create({ ... })` hívásban a
+  `tools` mezőt bővítsd:
+
+```ts
+      tools: [RUN_SQL_TOOL, LIST_CATEGORIES_TOOL],
+```
+
+- [ ] **4. lépés — Dispatch-ág a loopban.** A `for (const block of response.content)` cikluson belül,
+  a meglévő `runSql` `if` **után** told be a `listCategories` ágat:
+
+```ts
+      if (block.type === 'tool_use' && block.name === 'listCategories') {
+        try {
+          const categories = await listCategories();
+          executedSql.push(CATEGORIES_SQL);
+          sqlResults.push(categories);
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: JSON.stringify(categories),
+          });
+        } catch (error) {
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: `Hiba: ${error instanceof Error ? error.message : String(error)}`,
+            is_error: true,
+          });
+        }
+      }
+```
+
+- [ ] **5. lépés — Regressziós ellenőrzés.** A meglévő `ask-agent.spec.ts` (extractText, buildPrompt)
+  maradjon zöld:
+  Run: `nvm use 22 && pnpm nx test core`
+  Expected: PASS (minden core teszt, köztük a C1 és az ask-agent unitok).
+
+- [ ] **6. lépés — Commit.**
+
+```bash
+git add packages/core/src/lib/ask-agent.ts
+git commit -m "feat(core): wire listCategories into the agent tool loop"
+```
+
+---
+
+### C3 — System prompt: a tool ismertetése a modellnek
+
+**Files:**
+- Modify: `packages/core/src/lib/system-prompt.ts`
+
+- [ ] **1. lépés — `<tools>` szekció bővítése.** A `<tools>` blokkban a `runSql` sor alá:
+
+```
+- listCategories(): a katalógus egyedi kategóriáit adja vissza. Ha a felhasználó a kategóriákra kérdez rá ("milyen kategóriák vannak?"), EZT hívd, ne generálj SELECT-et.
+```
+
+- [ ] **2. lépés — Teszt zöld marad.** A `buildPrompt` a `SYSTEM_PROMPT`-ra referál (nem a tartalmára),
+  így nem törik:
+  Run: `nvm use 22 && pnpm nx test core`
+  Expected: PASS.
+
+- [ ] **3. lépés — Commit.**
+
+```bash
+git add packages/core/src/lib/system-prompt.ts
+git commit -m "feat(core): document listCategories tool in system prompt"
+```
+
+---
+
+### C4 — Manuális teszt (élő agent) + zárás
+
+- [ ] **1. lépés — Kategória-kérdés a tool-lal.**
+  Run: `nvm use 22 && pnpm nx run cli:serve -- ask "milyen kategóriák vannak?"`
+  Expected: az agent a `listCategories` toolt hívja, és a distinct kategóriákat magyarul felsorolja.
+  A `logs/<timestamp>.jsonl`-ben megjelenik a `CATEGORIES_SQL` és a kategórialista.
+
+- [ ] **2. lépés — Regresszió: a runSql-út változatlan.**
+  Run: `nvm use 22 && pnpm nx run cli:serve -- ask "hány pozsgás van raktáron?"`
+  Expected: az agent továbbra is `runSql`-t használ, valós számmal válaszol.
+
+- [ ] **3. lépés — Teljes teszt-suite.**
+  Run: `nvm use 22 && pnpm nx run-many -t test`
+  Expected: minden zöld.
+
+- [ ] **4. lépés — PR.** A `dev-workflow.md` szerint feature branchről PR a main felé
+  (`feat: add listCategories tool`).
+
+> **C) kész:** a felhasználó rákérdez a kategóriákra → az agent a dedikált `listCategories` toollal
+> válaszol, a runSql-út érintetlen, a naplózás a tool-hívást is tükrözi.
 ```

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import { logInteraction } from './logger.js';
 import { runSql } from './run-sql.js';
+import { listCategories, CATEGORIES_SQL } from './list-categories.js';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -20,6 +21,17 @@ const RUN_SQL_TOOL: Anthropic.Tool = {
       query: { type: 'string', description: 'A futtatandó SELECT lekérdezés (PostgreSQL).' },
     },
     required: ['query'],
+  },
+};
+
+// A listCategories tool: paraméter nélküli, a katalógus egyedi kategóriáit adja vissza.
+const LIST_CATEGORIES_TOOL: Anthropic.Tool = {
+  name: 'listCategories',
+  description:
+    'A katalógus egyedi (distinct) kategóriáinak listája. Akkor hívd, ha a felhasználó a kategóriákra kérdez rá — ne generálj hozzá SQL-t.',
+  input_schema: {
+    type: 'object',
+    properties: {},
   },
 };
 
@@ -85,7 +97,7 @@ export async function askAgent(input: unknown): Promise<AgentResult> {
       max_tokens: MAX_TOKENS,
       system: prompt.system,
       messages,
-      tools: [RUN_SQL_TOOL],
+      tools: [RUN_SQL_TOOL, LIST_CATEGORIES_TOOL],
     });
     usage.input_tokens += response.usage.input_tokens;
     usage.output_tokens += response.usage.output_tokens;
@@ -109,6 +121,25 @@ export async function askAgent(input: unknown): Promise<AgentResult> {
             type: 'tool_result',
             tool_use_id: block.id,
             content: JSON.stringify(result.rows),
+          });
+        } catch (error) {
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: `Hiba: ${error instanceof Error ? error.message : String(error)}`,
+            is_error: true,
+          });
+        }
+      }
+      if (block.type === 'tool_use' && block.name === 'listCategories') {
+        try {
+          const categories = await listCategories();
+          executedSql.push(CATEGORIES_SQL);
+          sqlResults.push(categories);
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: JSON.stringify(categories),
           });
         } catch (error) {
           toolResults.push({
