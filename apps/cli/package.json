@@ -98,6 +98,7 @@
     }
   },
   "dependencies": {
+    "@plantbase/core": "workspace:*",
     "commander": "^15.0.0"
   }
 }
