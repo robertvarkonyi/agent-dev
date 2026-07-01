@@ -1,0 +1,38 @@
+// Plantbase — Prisma séma. A products katalógus a domain (stack.md szerint).
+// Legacy `prisma-client-js` generátor: a kliens a @prisma/client-be generálódik,
+// így a kapott seed (`import { PrismaClient } from '@prisma/client'`) módosítás nélkül fut.
+// A mezőnevek snake_case-ek, hogy egyezzenek a seed adat kulcsaival.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                Int      @id @default(autoincrement())
+  name              String
+  latin_name        String
+  category          String // szobanövény / kerti / pozsgás / kaktusz / fűszer / fa-cserje / lógó / virágzó
+  location          String // beltéri / kültéri / mindkettő
+  price             Decimal // ár (HUF)
+  sale_price        Decimal? // akciós ár (null, ha nincs akció)
+  stock             Int // raktárkészlet (db)
+  light             String // árnyék / alacsony / közepes / erős / direkt nap
+  watering          String // ritka / közepes / gyakori / állandóan nedves
+  difficulty        String // kezdő / haladó / profi
+  current_height_cm Int // aktuális magasság
+  max_height_cm     Int // kifejlett (max) magasság
+  current_pot_cm    Int // aktuális cserépméret
+  pet_safe          Boolean // háziállat-barát
+  kid_safe          Boolean // gyerekbiztos (nem mérgező)
+  air_purifying     Boolean // légtisztító
+  rating            Decimal // 0-5
+  reviews_count     Int
+  description       String
+
+  @@map("products")
+}
