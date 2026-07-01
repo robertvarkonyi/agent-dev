@@ -8,6 +8,36 @@
 > Alapelv: minden lépés **kicsi, önállóan tesztelhető increment**, a végén **egy commit**.
 > Minden lépés után a fejlesztő **manuálisan tesztel**, mielőtt tovább megyünk.
 
+## Állapot: ✅ KÉSZ (a `main`-en)
+
+A teljes terv megvalósult; a `main`-en fut a működő Plantbase (élő kérdés → helyes SQL →
+helyes válasz, read-only garanciával és naplózással). Lépésenként egy commit, fázisonként PR.
+
+| Lépés | Commit | PR |
+|---|---|---|
+| A1 Nx workspace + pnpm | `9300815` | #2 |
+| A2 cli/core/db projektek | `6921435` | #2 |
+| A3 Postgres + read-only role | `4d9d949` | #2 |
+| A4 Prisma séma + migráció | `abcd276` | #2 |
+| A5 seed bekötése (30 növény) | `98e5ebe` | #2 |
+| A6 üres CLI belépési pont | `50f911e` | #2 |
+| B1 CLI echo | `9ad3ad4` (+teszt `1e82a9f`) | #3 |
+| B2 LLM, DB nélkül | `4a826a6` | #4 |
+| B3 runSql tool + multistep loop | `658be75` | #5 |
+
+### Főbb eltérések a tervtől (megvalósítás közben)
+
+- **Node 22.17.0 LTS-hez kötve** (`.nvmrc`, `engines`): az Nx 23 által választott Vitest 4 /
+  Vite 8 / rolldown toolchain natív bindingje Node ≥ 20.19/22.12-t igényel.
+- **Prisma 6.19** (nem 7): a kapott seed klasszikus `new PrismaClient()` + `@prisma/client`
+  importot használ; a v7 driver-adaptert követelne + a seed módosítását. Ezért v6 (`url` a
+  sémában, `prisma-client-js`, `prisma.config.ts` nélkül).
+- **Seed helye:** a kapott `plants.ts` + `seed.ts` a `packages/db/prisma/` alá került, a seed
+  parancs a root `package.json` `prisma.seed`-jében; a `/seed` kit-mappa törölve.
+- **CLI futtatás:** `pnpm cli ask "..."` (tsx-szel a forrásból, `--conditions`), nem `nx serve`.
+- Külön kapott teszt/script nem érkezett a seeden túl; a lefedettséget TDD-vel írt unit +
+  CLI integrációs tesztek adják.
+
 ## Rögzített döntések (a terv előfeltevései)
 
 - **Assetek kívülről.** A függőségek, a **seed adat**, valamint a **tesztek/scriptek**
@@ -44,7 +74,7 @@ Git/commit/hookok: `dev-workflow.md` (feature branch, Conventional Commits, egy 
 
 ---
 
-# A) Környezet létrehozása (mérföldkő)
+# A) Környezet létrehozása (mérföldkő) — ✅ kész
 
 Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — Nx monorepo
 (`packages/core` + `apps/cli`), `packages/db` a Prisma libbel, a **seed betöltve**, és
@@ -101,16 +131,16 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
 
 ### A4 — Prisma a `packages/db`-ben
 
-> **Doksi előbb (`architektura.md` 7.):** a Prisma API-t Context7-tel már beolvastuk
-> (v7 `prisma.config.ts` + `prisma-client` generátor, egyedi output).
+> **Doksi előbb (`architektura.md` 7.):** a Prisma API-t Context7-tel beolvastuk. A v7 breaking
+> változása (nincs `url` a sémában, kötelező driver-adapter) miatt a **stabil Prisma 6.19**-et
+> választottuk, hogy a kapott klasszikus seed módosítás nélkül fusson (lásd az eltérések fentebb).
 
-- `packages/db/prisma/schema.prisma`: `datasource db { provider = "postgresql" }`,
-  `generator client` egyedi outputtal a lib `src`-jébe; `products` modell a **`stack.md` séma**
-  szerint (mezők, típusok, kategorikus értékkészletek kommentben).
-- `packages/db/prisma.config.ts`: schema-útvonal, migrations-útvonal, `datasource.url = env(DATABASE_URL)`.
-- Első migráció: `prisma migrate dev --name init`.
-- Prisma kliens generálása; `packages/db/src/index.ts` exportálja a klienst és a típusokat
-  (a **seed** és a jövőbeli olvasók innen importálnak — a runSql viszont NEM Prismán megy).
+- `packages/db/prisma/schema.prisma`: `datasource db { provider = "postgresql"; url = env("DATABASE_URL") }`,
+  `generator client { provider = "prisma-client-js" }` (a kliens a `@prisma/client`-be generál);
+  `products` modell a **`stack.md` séma** szerint, **snake_case** mezőkkel + `@@map("products")`.
+- Első migráció (root-ból, a `.env`-t a Prisma tölti): `prisma migrate dev --name init --schema packages/db/prisma/schema.prisma`.
+- Prisma kliens generálása; a **seed** a `@prisma/client`-ből importál (a runSql viszont NEM
+  Prismán, hanem `pg`-vel megy a read-only kapcsolaton).
 - Nx target-ek a `packages/db`-hez: `migrate`, `generate`, `seed` (a `db:seed` a következő lépésben
   kapja meg a valódi seed scriptet).
 
@@ -150,7 +180,7 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
 
 ---
 
-# B) Implementáció — 3 fázis (ebben a sorrendben)
+# B) Implementáció — 3 fázis (ebben a sorrendben) — ✅ kész
 
 A sorrend szándékosan **rétegről rétegre** halad, hogy a működés fokozatosan látszódjon:
 **1) CLI echo (LLM nélkül) → 2) LLM (DB nélkül) → 3) SQL-es interakció (runSql tool).**
@@ -249,13 +279,15 @@ Cél: bekötjük a **`runSql` toolt**. Az agent a kérdésből **SQL-t ír**, le
 - **Determinista, izolált** tesztek; a DB-integrációs teszt a lokális Postgres ellen fut.
 - **Minden fázis végén** a fejlesztő manuálisan tesztel, mielőtt a következő lépés indul.
 
-## Kockázatok / nyitott pontok
+## Kockázatok / nyitott pontok — utólagos megoldás
 
-- **Assetek formátuma.** A kapott seed/teszt/script pontos formátuma (TS seed vs. SQL dump,
-  teszt-elrendezés) az A5-nél derül ki; a bekötést ahhoz igazítjuk (seedet nem generálunk).
-- **Prisma major.** A pontos Prisma verzió a legfrissebb stabilhoz igazodik (Context7-tel
-  ellenőrzött `prisma.config.ts` mintával); ha a generátor/CLI részletek térnek, az A4-nél
-  igazítunk.
-- **Read-only role init.** A role-t az A3 hozza létre; ha a séma migráció után jönne, a
-  `DEFAULT PRIVILEGES`/`GRANT SELECT` időzítését az A4 után is meg kell erősíteni.
+- **Assetek formátuma.** ✅ A seed TS (`plants.ts` + `seed.ts`, `@prisma/client`); a
+  `packages/db/prisma/` alá került, seedet nem generáltunk. Külön teszt/script nem érkezett.
+- **Prisma major.** ✅ A v7 breaking változása miatt **Prisma 6.19**-re esett a választás (a
+  kapott klasszikus seed így módosítás nélkül fut). Az A4 ezt tükrözi.
+- **Read-only role init.** ✅ Az A3 `initdb` scriptje hozza létre a role-t, és a `DEFAULT
+  PRIVILEGES` gondoskodik róla, hogy az A4-ben (Prisma migrációval) létrejövő `products`-ra is
+  legyen SELECT — élőben igazolva (a read-only role olvassa a katalógust).
+- **Node-verzió (új).** A toolchain Node ≥ 22.12-t igényelt; a projektet Node 22 LTS-hez
+  kötöttük (`.nvmrc` + `engines`).
 ```
