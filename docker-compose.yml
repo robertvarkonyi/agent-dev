@@ -1,0 +1,29 @@
+# Plantbase — lokális Postgres (OrbStack futtatja).
+# A titkok a .env-ből jönnek (nincs a repóban); lásd .env.example.
+services:
+  db:
+    image: postgres:17
+    container_name: plantbase-db
+    restart: unless-stopped
+    environment:
+      # read-write owner (Prisma: séma/migráció/seed)
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # read-only role (az init script hozza létre) — az agent runSql-je ezt használja
+      POSTGRES_RO_USER: ${POSTGRES_RO_USER}
+      POSTGRES_RO_PASSWORD: ${POSTGRES_RO_PASSWORD}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - plantbase-pgdata:/var/lib/postgresql/data
+      # csak az első inicializáláskor fut le (üres data dir esetén)
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  plantbase-pgdata:
