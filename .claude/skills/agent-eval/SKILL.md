@@ -32,7 +32,7 @@ ezért a golden készlet szándékosan kicsi.
 
 ```bash
 nvm use 22
-NODE_OPTIONS=--conditions=@plantbase/source tsx .claude/skills/agent-eval/scripts/run-eval.ts
+NODE_OPTIONS=--conditions=@plantbase/source pnpm exec tsx .claude/skills/agent-eval/scripts/run-eval.ts
 ```
 
 A script minden golden esetre lefuttatja az `askAgent`-et, és ír egy

@@ -5,7 +5,7 @@
 //
 // Futtatás (Node 22, source-conditions kell a workspace-importhoz):
 //   nvm use 22
-//   NODE_OPTIONS=--conditions=@plantbase/source tsx .claude/skills/agent-eval/scripts/run-eval.ts
+//   NODE_OPTIONS=--conditions=@plantbase/source pnpm exec tsx .claude/skills/agent-eval/scripts/run-eval.ts
 //
 // Előfeltétel: .env kitöltve (ANTHROPIC_API_KEY, DATABASE_URL_READONLY) és a Postgres fut
 // (docker compose up -d), seedelt katalógussal.
