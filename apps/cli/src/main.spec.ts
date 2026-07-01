@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 
 // A CLI-t valódi alfolyamatban futtatjuk (mint `pnpm cli`): node + tsx a forráson,
 // a @plantbase/core forrás-feloldásához a source conditionnel.
+// Csak hálózat-mentes utakat tesztelünk (nincs LLM-hívás) — a valós agent-választ manuálisan.
 const mainPath = fileURLToPath(new URL('./main.ts', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
 
@@ -16,14 +17,15 @@ function runCli(args: string[], input = ''): string {
 }
 
 describe('plantbase CLI (integráció)', () => {
-  it('az ask visszaírja a kérdést (echo)', () => {
-    const out = runCli(['ask', 'teszt kérdés']);
-    expect(out.trim()).toBe('teszt kérdés');
+  it('a --help felsorolja az ask és chat parancsokat', () => {
+    const out = runCli(['--help']);
+    expect(out).toContain('ask');
+    expect(out).toContain('chat');
   });
 
-  it('az interaktív mód visszhangoz, majd exit-re kilép', () => {
-    const out = runCli([], 'szia\nexit\n');
-    expect(out).toContain('szia');
+  it('az interaktív mód elindul és exit-re kilép', () => {
+    const out = runCli([], 'exit\n');
+    expect(out).toContain('interaktív mód');
     expect(out).toContain('Viszlát!');
   });
 });
