@@ -4,16 +4,27 @@
   "license": "MIT",
   "scripts": {},
   "private": true,
-  "dependencies": {},
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "devDependencies": {
+    "@nx/esbuild": "23.0.1",
     "@nx/js": "23.0.1",
+    "@nx/node": "23.0.1",
+    "@nx/vite": "23.0.1",
+    "@nx/vitest": "23.0.1",
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
     "@swc/helpers": "0.5.18",
     "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "~4.1.0",
+    "esbuild": "^0.27.0",
     "nx": "23.0.1",
     "prettier": "^3.8.1",
     "tslib": "^2.3.0",
-    "typescript": "~6.0.3"
-  }
+    "typescript": "~6.0.3",
+    "vite": "^8.0.0",
+    "vitest": "~4.1.0"
+  },
+  "dependencies": {}
 }
