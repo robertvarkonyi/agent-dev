@@ -105,6 +105,26 @@ hívódnak, amikor a kérés illik rájuk. Mindkettő futtatásához Node 22 kel
 Új skillt a `.claude/skills/<név>/SKILL.md` létrehozásával adhatsz hozzá
 (frontmatter `name` + `description` — utóbbi dönti el, mikor triggerelődik).
 
+## System prompt — legutóbbi változások
+
+Az agent system promptja
+([system-prompt.ts](packages/core/src/lib/system-prompt.ts) a futásidejű,
+[docs/system-prompt.md](docs/system-prompt.md) a termék-doksi verzió) az alábbi
+pontokkal bővült:
+
+1. **`listCategories` a `<tools>` közé (doksi-szinkron).** A termék-doksi
+   `<tools>` szekciója korábban csak a `runSql`-t sorolta fel, holott a tool már
+   be volt kötve a loopba. Mostantól a `.md` is dokumentálja a
+   `listCategories()`-t, összhangban a futásidejű prompttal.
+2. **`<task>` tool-routingra általánosítva.** A korábbi „minden kérdést fordíts
+   SQL-re" keretezés a `listCategories` ellen dolgozott. Az új megfogalmazás
+   explicit döntést kér: kategória-kérdésre `listCategories`, minden más
+   lekérdezésre `runSql` — így a modell nem generál felesleges SELECT-et a
+   kategórialistához.
+3. **Tool-hiba viselkedés a `<behavior>`-ben.** Új szabály: ha egy tool hibát ad
+   vissza, a modell javítsa a lekérdezést és próbálja újra, a nyers
+   hibaüzenetet pedig ne adja tovább a felhasználónak.
+
 ## Dokumentáció
 
 - [docs/brs-plantbase.md](docs/brs-plantbase.md) — üzleti követelmény-leírás (BRS)
