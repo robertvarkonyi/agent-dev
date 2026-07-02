@@ -5,7 +5,12 @@
 import 'dotenv/config';
 import { Command } from 'commander';
 import { createInterface } from 'node:readline';
-import { askAgent, buildPrompt, type Prompt } from '@plantbase/core';
+import {
+  askAgent,
+  buildPrompt,
+  errorMessage,
+  type Prompt,
+} from '@plantbase/core';
 
 function formatPrompt(prompt: Prompt): string {
   return [
@@ -26,7 +31,7 @@ async function answer(input: string, showPrompt: boolean): Promise<void> {
     const { answer: text } = await askAgent(input);
     console.log(text);
   } catch (error) {
-    console.error(`Hiba: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Hiba: ${errorMessage(error)}`);
   }
 }
 

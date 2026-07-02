@@ -20,13 +20,19 @@ export function assertSelectOnly(input: unknown): string {
     throw new Error('Üres SQL.');
   }
   if (sql.includes(';')) {
-    throw new Error('Csak egyetlen utasítás engedélyezett (nincs pontosvessző a lekérdezésben).');
+    throw new Error(
+      'Csak egyetlen utasítás engedélyezett (nincs pontosvessző a lekérdezésben).',
+    );
   }
   if (!/^(select|with)\b/i.test(sql)) {
-    throw new Error('Csak SELECT (vagy WITH ... SELECT) lekérdezés engedélyezett.');
+    throw new Error(
+      'Csak SELECT (vagy WITH ... SELECT) lekérdezés engedélyezett.',
+    );
   }
   if (FORBIDDEN.test(sql)) {
-    throw new Error('Adatmódosító vagy DDL kulcsszó nem engedélyezett (csak SELECT).');
+    throw new Error(
+      'Adatmódosító vagy DDL kulcsszó nem engedélyezett (csak SELECT).',
+    );
   }
   return sql;
 }
@@ -38,7 +44,9 @@ function getPool(): Pool {
   if (!pool) {
     const connectionString = process.env.DATABASE_URL_READONLY;
     if (!connectionString) {
-      throw new Error('Hiányzik a DATABASE_URL_READONLY. Állítsd be a .env-ben.');
+      throw new Error(
+        'Hiányzik a DATABASE_URL_READONLY. Állítsd be a .env-ben.',
+      );
     }
     pool = new Pool({ connectionString });
   }
@@ -55,5 +63,9 @@ export interface SqlResult {
 export async function runSql(input: unknown): Promise<SqlResult> {
   const sql = assertSelectOnly(input);
   const result = await getPool().query(sql);
-  return { sql, rows: result.rows, rowCount: result.rowCount ?? result.rows.length };
+  return {
+    sql,
+    rows: result.rows,
+    rowCount: result.rowCount ?? result.rows.length,
+  };
 }

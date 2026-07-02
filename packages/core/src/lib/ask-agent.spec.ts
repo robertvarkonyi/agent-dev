@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { extractText, buildPrompt } from './ask-agent';
-import { SYSTEM_PROMPT } from './system-prompt';
+import { extractText, buildPrompt } from './ask-agent.js';
+import { SYSTEM_PROMPT } from './system-prompt.js';
 
 describe('extractText', () => {
   it('összefűzi a text blokkok szövegét', () => {
