@@ -16,6 +16,7 @@
 - **Megőrzött invariánsok:** read-only SQL-guard (`assertSelectOnly`, [run-sql.ts](../../../packages/core/src/lib/run-sql.ts) érintetlen); JSONL-napló változatlan `InteractionLog` alakkal; `usage` mindig `{ input_tokens, output_tokens }`; `--show-prompt` működik `ask`-ban és `chat`-ben is.
 - **Modell-default:** `claude-sonnet-4-6`. Env: `ANTHROPIC_API_KEY` (kötelező), `ANTHROPIC_MODEL` (opcionális), `AI_PROVIDER` (opcionális, alap `anthropic`).
 - **Kód-konvenciók** ([konvenciok.md](../../../docs/konvenciok.md)): magyar kommentek, `singleQuote`, `strict` TS, explicit típus a publikus API-n, TDD (piros→zöld), egy fájl egy felelősség.
+- **`.js` a relatív importokon** (a `moduleResolution: nodenext` ezt megköveteli — a `pnpm nx typecheck` különben vörös): minden relatív import (a spec-fájlokban is) `.js`-re végződjön, pl. `from './provider.js'`.
 - **Git:** a `feat/ai-sdk-chat-agent` ágon dolgozunk (már létrehozva main-ről). Conventional Commits, koherens lépésenként egy commit.
 - **Determinista tesztek:** hálózat és DB nélkül. Az LLM-hívást a teszt sosem éri el — az `ai` modult (`generateText`/`streamText`) mockoljuk, a DB-t (`run-sql`) is. A valós agent-választ manuálisan / evallal ellenőrizzük.
 
@@ -149,8 +150,7 @@ git commit -m "$(printf 'feat: AI SDK provider-factory (Anthropic, env-vezérelt
 A DB-t (`run-sql`) és a `list-categories`-t mockoljuk, hogy determinista és hálózat-mentes legyen; közvetlenül a tool `execute`-ját hívjuk.
 
 ```ts
-import { describe, it, expect } from 'vitest';
-import { vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('./run-sql.js', () => ({
   runSql: vi.fn(async (q: string) => ({ sql: q.trim(), rows: [{ id: 1 }], rowCount: 1 })),
@@ -160,7 +160,7 @@ vi.mock('./list-categories.js', () => ({
   listCategories: vi.fn(async () => ['kaktusz', 'pozsgás']),
 }));
 
-import { buildTools, type ToolCall } from './agent-tools';
+import { buildTools, type ToolCall } from './agent-tools.js';
 
 // Az AI SDK execute második paramétere a ToolCallOptions — a tesztben minimál stub elég.
 const opts = { toolCallId: 't1', messages: [] } as never;
@@ -292,8 +292,8 @@ vi.mock('ai', async (importOriginal) => {
   return { ...actual, generateText: (...a: unknown[]) => generateTextMock(...a) };
 });
 
-import { askAgent, buildPrompt } from './ask-agent';
-import { SYSTEM_PROMPT } from './system-prompt';
+import { askAgent, buildPrompt } from './ask-agent.js';
+import { SYSTEM_PROMPT } from './system-prompt.js';
 
 describe('buildPrompt', () => {
   it('a system promptot és a user üzenetet adja vissza', () => {
@@ -519,7 +519,7 @@ vi.mock('ai', async (importOriginal) => {
 
 Az importhoz vedd fel a `streamChat`-et:
 ```ts
-import { askAgent, buildPrompt, streamChat } from './ask-agent';
+import { askAgent, buildPrompt, streamChat } from './ask-agent.js';
 ```
 
 Új teszt-blokk:
