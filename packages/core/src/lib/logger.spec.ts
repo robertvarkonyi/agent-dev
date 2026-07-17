@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { logInteraction } from './logger';
+import { logInteraction } from './logger.js';
 
 describe('logInteraction', () => {
   it('JSONL fájlba írja az interakciót (system, üzenetek, válasz, token)', () => {

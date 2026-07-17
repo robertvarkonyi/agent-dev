@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertSelectOnly } from './run-sql';
+import { assertSelectOnly } from './run-sql.js';
 
 describe('assertSelectOnly', () => {
   it('elfogadja az egyszerű SELECT-et', () => {

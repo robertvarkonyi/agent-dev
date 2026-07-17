@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractCategories } from './list-categories';
+import { extractCategories } from './list-categories.js';
 
 describe('extractCategories', () => {
   it('kinyeri és megőrzi a kategórianeveket a sorokból', () => {
