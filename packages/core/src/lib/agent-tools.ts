@@ -1,4 +1,4 @@
-import { tool } from 'ai';
+import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 import { runSql } from './run-sql.js';
 import { listCategories, CATEGORIES_SQL } from './list-categories.js';
@@ -12,7 +12,7 @@ export interface ToolCall {
 // A tool-ok egyetlen helye (ez váltja az inline Anthropic.Tool konstansokat). Új tool = egy
 // bejegyzés ide. A `collector` futás-hatókörű: minden execute mellékhatásként belépteti a
 // naplózandó { sql, rows }-t, miközben a modellnek csak a rows megy vissza.
-export function buildTools(collector: ToolCall[]) {
+export function buildTools(collector: ToolCall[]): ToolSet {
   return {
     runSql: tool({
       description:
