@@ -64,6 +64,10 @@ function runInteractive(showPrompt: boolean): void {
       }
       try {
         const { textStream, done } = streamChat(next);
+        // A done sosem maradhat kezeletlen: stream-hiba esetén a for-await a catch-be ugrik, mielőtt
+        // az await done lefutna, és a done elutasítása Node-on process-crasht okozna. Ezért mindig
+        // kötünk rá egy nyelő kezelőt (a happy path await-je így is megkapja az értéket/hibát).
+        done.catch(() => undefined);
         for await (const chunk of textStream) {
           process.stdout.write(chunk);
         }
