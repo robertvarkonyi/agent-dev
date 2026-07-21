@@ -5,7 +5,14 @@
 import 'dotenv/config';
 import { Command } from 'commander';
 import { createInterface } from 'node:readline';
-import { askAgent, buildPrompt, type Prompt } from '@plantbase/core';
+import {
+  askAgent,
+  buildPrompt,
+  streamChat,
+  SYSTEM_PROMPT,
+  type ChatMessage,
+  type Prompt,
+} from '@plantbase/core';
 
 function formatPrompt(prompt: Prompt): string {
   return [
@@ -37,6 +44,9 @@ function runInteractive(showPrompt: boolean): void {
     prompt: 'plantbase> ',
   });
 
+  // A session alatt élő beszélgetés-előzmény (kilépéskor elveszik — nincs perzisztálás).
+  const history: ChatMessage[] = [];
+
   console.log('Plantbase interaktív mód. Kilépés: exit');
   rl.prompt();
 
@@ -47,7 +57,24 @@ function runInteractive(showPrompt: boolean): void {
       return;
     }
     if (text.length > 0) {
-      await answer(text, showPrompt);
+      // Csak sikeres válasz után írjuk vissza az előzményt (hibánál a history érintetlen).
+      const next: ChatMessage[] = [...history, { role: 'user', content: text }];
+      if (showPrompt) {
+        console.log(formatPrompt({ system: SYSTEM_PROMPT, messages: next }));
+      }
+      try {
+        const { textStream, done } = streamChat(next);
+        for await (const chunk of textStream) {
+          process.stdout.write(chunk);
+        }
+        process.stdout.write('\n');
+        const { messages } = await done;
+        history.splice(0, history.length, ...messages);
+      } catch (error) {
+        console.error(
+          `Hiba: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
     rl.prompt();
   });
