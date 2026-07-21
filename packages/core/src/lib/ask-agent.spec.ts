@@ -9,14 +9,19 @@ vi.mock('./run-sql.js', () => ({
   runSql: vi.fn(async (q: string) => ({ sql: q.trim(), rows: [{ n: 1 }], rowCount: 1 })),
 }));
 
-// Az 'ai'-ból csak a generateText-et stuboljuk; a tool()/stepCountIs valódi marad.
+// Az 'ai'-ból a generateText-et és a streamText-et stuboljuk; a tool()/stepCountIs valódi marad.
 const generateTextMock = vi.fn();
+const streamTextMock = vi.fn();
 vi.mock('ai', async (importOriginal) => {
   const actual = await importOriginal<typeof import('ai')>();
-  return { ...actual, generateText: (...a: unknown[]) => generateTextMock(...a) };
+  return {
+    ...actual,
+    generateText: (...a: unknown[]) => generateTextMock(...a),
+    streamText: (...a: unknown[]) => streamTextMock(...a),
+  };
 });
 
-import { askAgent, buildPrompt } from './ask-agent.js';
+import { askAgent, buildPrompt, streamChat } from './ask-agent.js';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 
 describe('buildPrompt', () => {
@@ -82,5 +87,45 @@ describe('askAgent', () => {
     const entry = logSpy.mock.calls[0][0] as { sql: string; answer: string };
     expect(entry.sql).toContain('SELECT * FROM products');
     expect(entry.answer).toBe('Egy termék.');
+  });
+});
+
+describe('streamChat', () => {
+  beforeEach(() => {
+    streamTextMock.mockReset();
+    logSpy.mockReset();
+  });
+
+  it('streameli a szöveget, és a done a frissített előzményt + usage-t adja', async () => {
+    streamTextMock.mockImplementation(() => {
+      async function* gen() {
+        yield 'Hel';
+        yield 'ló';
+      }
+      return {
+        textStream: gen(),
+        text: Promise.resolve('Helló'),
+        usage: Promise.resolve({ inputTokens: 3, outputTokens: 2 }),
+        response: Promise.resolve({
+          messages: [{ role: 'assistant', content: 'Helló' }],
+        }),
+      };
+    });
+
+    const history = [{ role: 'user' as const, content: 'szia' }];
+    const { textStream, done } = streamChat(history, {} as never);
+
+    let acc = '';
+    for await (const chunk of textStream) acc += chunk;
+    expect(acc).toBe('Helló');
+
+    const result = await done;
+    expect(result.answer).toBe('Helló');
+    expect(result.usage).toEqual({ input_tokens: 3, output_tokens: 2 });
+    expect(result.messages).toEqual([
+      { role: 'user', content: 'szia' },
+      { role: 'assistant', content: 'Helló' },
+    ]);
+    expect(logSpy).toHaveBeenCalledTimes(1);
   });
 });

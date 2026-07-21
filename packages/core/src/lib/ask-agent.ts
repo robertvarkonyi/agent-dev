@@ -1,5 +1,6 @@
 import {
   generateText,
+  streamText,
   stepCountIs,
   type LanguageModel,
   type ModelMessage,
@@ -86,4 +87,54 @@ export async function askAgent(
   });
 
   return { answer: result.text, usage };
+}
+
+// A CLI felé stabil, SDK-mentes felület: token-stream + a befejezéskor feloldódó metaadat.
+export interface ChatStream {
+  textStream: AsyncIterable<string>;
+  done: Promise<{
+    answer: string;
+    usage: AgentResult['usage'];
+    messages: ChatMessage[];
+  }>;
+}
+
+// Többfordulós, streamelő agent. A hívó a teljes előzményt (messages) adja át; a done.messages
+// a bővített előzmény (bemenet + asszisztens válasz), amit a hívó visszaír. A naplózás a done
+// befejezőben történik (a hívó CLI mindig await-eli a done-t az előzmény-frissítéshez).
+export function streamChat(
+  messages: ChatMessage[],
+  model: LanguageModel = resolveModel(),
+): ChatStream {
+  const collector: ToolCall[] = [];
+  const result = streamText({
+    model,
+    system: SYSTEM_PROMPT,
+    messages,
+    tools: buildTools(collector),
+    stopWhen: stepCountIs(MAX_STEPS),
+  });
+
+  const done = (async () => {
+    const [answer, rawUsage, response] = await Promise.all([
+      result.text,
+      result.usage,
+      result.response,
+    ]);
+    const usage = mapUsage(rawUsage);
+    const fullMessages: ChatMessage[] = [...messages, ...response.messages];
+    logInteraction({
+      timestamp: new Date().toISOString(),
+      model: modelId(model),
+      system: SYSTEM_PROMPT,
+      messages: fullMessages,
+      answer,
+      usage,
+      sql: collector.map((c) => c.sql).join('\n'),
+      result: collector.map((c) => c.rows),
+    });
+    return { answer, usage, messages: fullMessages };
+  })();
+
+  return { textStream: result.textStream, done };
 }
