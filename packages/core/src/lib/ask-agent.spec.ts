@@ -52,6 +52,16 @@ describe('askAgent', () => {
     expect(res.usage).toEqual({ input_tokens: 10, output_tokens: 5 });
   });
 
+  it('a usage-t nullázza, ha a modell nem ad usage-t', async () => {
+    generateTextMock.mockResolvedValue({
+      text: 'Kész.',
+      usage: undefined,
+      response: { messages: [{ role: 'assistant', content: 'Kész.' }] },
+    });
+    const res = await askAgent('szia', {} as never);
+    expect(res.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+  });
+
   it('naplózza az interakciót, benne a collector SQL-jével', async () => {
     // A stubolt generateText lefuttatja a runSql toolt, hogy a collector megteljen.
     generateTextMock.mockImplementation(
