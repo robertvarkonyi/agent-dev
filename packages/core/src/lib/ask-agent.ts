@@ -74,12 +74,12 @@ export async function askAgent(
     stopWhen: stepCountIs(MAX_STEPS),
   });
 
-  const usage = mapUsage(result.usage);
+  const usage = mapUsage(result.totalUsage);
   logInteraction({
     timestamp: new Date().toISOString(),
     model: modelId(model),
     system: prompt.system,
-    messages: result.response.messages,
+    messages: [...prompt.messages, ...result.response.messages],
     answer: result.text,
     usage,
     sql: collector.map((c) => c.sql).join('\n'),
@@ -118,7 +118,7 @@ export function streamChat(
   const done = (async () => {
     const [answer, rawUsage, response] = await Promise.all([
       result.text,
-      result.usage,
+      result.totalUsage,
       result.response,
     ]);
     const usage = mapUsage(rawUsage);

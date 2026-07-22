@@ -29,4 +29,34 @@ describe('resolveModel', () => {
     delete process.env.ANTHROPIC_API_KEY;
     expect(() => resolveModel()).toThrow(/ANTHROPIC_API_KEY/);
   });
+
+  it('hiányzó AI_PROVIDER esetén anthropic-ra alapértelmezi', () => {
+    delete process.env.AI_PROVIDER;
+    process.env.ANTHROPIC_API_KEY = 'sk-teszt';
+    const model = resolveModel();
+    expect(model).toBeDefined();
+  });
+
+  it('hiányzó ANTHROPIC_MODEL esetén a default modell-id-t adja vissza', () => {
+    process.env.AI_PROVIDER = 'anthropic';
+    process.env.ANTHROPIC_API_KEY = 'sk-teszt';
+    delete process.env.ANTHROPIC_MODEL;
+    const model = resolveModel();
+    expect((model as { modelId: string }).modelId).toBe('claude-sonnet-4-6');
+  });
+
+  it('üres AI_PROVIDER esetén is anthropic-ra alapértelmezi (nem dob "Ismeretlen" hibát)', () => {
+    process.env.AI_PROVIDER = '';
+    process.env.ANTHROPIC_API_KEY = 'sk-teszt';
+    const model = resolveModel();
+    expect(model).toBeDefined();
+  });
+
+  it('üres ANTHROPIC_MODEL esetén a default modell-id-t adja vissza', () => {
+    process.env.AI_PROVIDER = 'anthropic';
+    process.env.ANTHROPIC_API_KEY = 'sk-teszt';
+    process.env.ANTHROPIC_MODEL = '';
+    const model = resolveModel();
+    expect((model as { modelId: string }).modelId).toBe('claude-sonnet-4-6');
+  });
 });

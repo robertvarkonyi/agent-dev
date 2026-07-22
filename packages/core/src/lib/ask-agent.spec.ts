@@ -49,7 +49,11 @@ describe('askAgent', () => {
   it('a modell szövegét adja vissza és a usage-t {input_tokens,output_tokens}-re képezi', async () => {
     generateTextMock.mockResolvedValue({
       text: 'Kész.',
-      usage: { inputTokens: 10, outputTokens: 5 },
+      // usage csak az utolsó lépésé; a naplózott/ visszaadott usage-nek a totalUsage-ből kell
+      // jönnie (összes lépés összesítve) — a két érték szándékosan eltér, hogy az assert
+      // megkülönböztesse a kettőt.
+      usage: { inputTokens: 99, outputTokens: 99 },
+      totalUsage: { inputTokens: 10, outputTokens: 5 },
       response: { messages: [{ role: 'assistant', content: 'Kész.' }] },
     });
     const res = await askAgent('szia', {} as never);
@@ -61,13 +65,14 @@ describe('askAgent', () => {
     generateTextMock.mockResolvedValue({
       text: 'Kész.',
       usage: undefined,
+      totalUsage: undefined,
       response: { messages: [{ role: 'assistant', content: 'Kész.' }] },
     });
     const res = await askAgent('szia', {} as never);
     expect(res.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
   });
 
-  it('naplózza az interakciót, benne a collector SQL-jével', async () => {
+  it('naplózza az interakciót, benne a collector SQL-jével és a user kérdéssel', async () => {
     // A stubolt generateText lefuttatja a runSql toolt, hogy a collector megteljen.
     generateTextMock.mockImplementation(
       async (opts: { tools: ReturnType<typeof import('./agent-tools.js').buildTools> }) => {
@@ -78,15 +83,23 @@ describe('askAgent', () => {
         return {
           text: 'Egy termék.',
           usage: { inputTokens: 1, outputTokens: 1 },
+          totalUsage: { inputTokens: 1, outputTokens: 1 },
           response: { messages: [{ role: 'assistant', content: 'Egy termék.' }] },
         };
       },
     );
     await askAgent('mutass egy terméket', {} as never);
     expect(logSpy).toHaveBeenCalledTimes(1);
-    const entry = logSpy.mock.calls[0][0] as { sql: string; answer: string };
+    const entry = logSpy.mock.calls[0][0] as {
+      sql: string;
+      answer: string;
+      messages: unknown[];
+    };
     expect(entry.sql).toContain('SELECT * FROM products');
     expect(entry.answer).toBe('Egy termék.');
+    // A naplózott messages-nek tartalmaznia kell a user kérdését is, nem csak az asszisztens
+    // válaszát (response.messages önmagában csak asszisztens/tool üzeneteket ad vissza).
+    expect(entry.messages[0]).toEqual({ role: 'user', content: 'mutass egy terméket' });
   });
 });
 
@@ -105,7 +118,10 @@ describe('streamChat', () => {
       return {
         textStream: gen(),
         text: Promise.resolve('Helló'),
-        usage: Promise.resolve({ inputTokens: 3, outputTokens: 2 }),
+        // usage csak az utolsó lépésé; a totalUsage-nek kell érvényesülnie — a két érték
+        // szándékosan eltér, hogy az assert megkülönböztesse a kettőt.
+        usage: Promise.resolve({ inputTokens: 99, outputTokens: 99 }),
+        totalUsage: Promise.resolve({ inputTokens: 3, outputTokens: 2 }),
         response: Promise.resolve({
           messages: [{ role: 'assistant', content: 'Helló' }],
         }),
