@@ -9,6 +9,14 @@ export interface ToolCall {
   rows: unknown;
 }
 
+// A modell által olvasható, NEM üres hibaszöveg. Fontos: az execute SOSEM dobhat — a dobott
+// Error az AI SDK-ban üres tool_result-tá szerializálódik (JSON.stringify(Error) === '{}'),
+// amit az Anthropic 400-zal elutasít (is_error + üres content). A visszaadott szöveget a modell
+// olvassa, és a system prompt szerint javított lekérdezéssel újrapróbál.
+function toolError(error: unknown): string {
+  return `Hiba: ${error instanceof Error ? error.message : String(error)}`;
+}
+
 // A tool-ok egyetlen helye (ez váltja az inline Anthropic.Tool konstansokat). Új tool = egy
 // bejegyzés ide. A `collector` futás-hatókörű: minden execute mellékhatásként belépteti a
 // naplózandó { sql, rows }-t, miközben a modellnek csak a rows megy vissza.
@@ -21,9 +29,13 @@ export function buildTools(collector: ToolCall[]): ToolSet {
         query: z.string().describe('A futtatandó SELECT lekérdezés (PostgreSQL).'),
       }),
       execute: async ({ query }) => {
-        const { sql, rows } = await runSql(query);
-        collector.push({ sql, rows });
-        return rows;
+        try {
+          const { sql, rows } = await runSql(query);
+          collector.push({ sql, rows });
+          return rows;
+        } catch (error) {
+          return toolError(error);
+        }
       },
     }),
     listCategories: tool({
@@ -31,9 +43,13 @@ export function buildTools(collector: ToolCall[]): ToolSet {
         'A katalógus egyedi (distinct) kategóriáinak listája. Akkor hívd, ha a felhasználó a kategóriákra kérdez rá — ne generálj hozzá SQL-t.',
       inputSchema: z.object({}),
       execute: async () => {
-        const categories = await listCategories();
-        collector.push({ sql: CATEGORIES_SQL, rows: categories });
-        return categories;
+        try {
+          const categories = await listCategories();
+          collector.push({ sql: CATEGORIES_SQL, rows: categories });
+          return categories;
+        } catch (error) {
+          return toolError(error);
+        }
       },
     }),
   };
