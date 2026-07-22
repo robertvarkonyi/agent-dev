@@ -83,19 +83,58 @@ function splitSections(body: string): Section[] {
   return sections;
 }
 
-// Bekezdés-határon pakol maxChars-ig, 1 bekezdés overlappal; nem lép át szekció-határt.
+// Egy maxChars-nál hosszabb bekezdést ≤maxChars darabokra vág: előbb mondat-
+// határon (`.!?` után), és ha egy mondat maga is túl hosszú, kemény maxChars-
+// széles ablakokra szeletel. A normál (≤maxChars) bekezdést változatlanul adja.
+function splitParagraph(p: string, maxChars: number): string[] {
+  if (p.length <= maxChars) return [p];
+  const out: string[] = [];
+  let buf = '';
+  const flush = () => {
+    if (buf) {
+      out.push(buf);
+      buf = '';
+    }
+  };
+  for (const s of p.split(/(?<=[.!?])\s+/)) {
+    if (s.length > maxChars) {
+      flush();
+      for (let i = 0; i < s.length; i += maxChars)
+        out.push(s.slice(i, i + maxChars));
+      continue;
+    }
+    const candidate = buf ? `${buf} ${s}` : s;
+    if (candidate.length > maxChars) {
+      flush();
+      buf = s;
+    } else {
+      buf = candidate;
+    }
+  }
+  flush();
+  return out;
+}
+
+// Bekezdés-határon pakol maxChars-ig, 1 bekezdés overlappal; nem lép át szekció-
+// határt. Minden chunk törzse (a prefix nélkül) ≤ maxChars: a túl hosszú bekezdést
+// előbb szétdaraboljuk, az overlapot csak akkor visszük tovább, ha még belefér.
 export function chunkDoc(
   doc: ParsedDoc,
-  opts?: { maxChars?: number; minChars?: number },
+  opts?: { maxChars?: number },
 ): Chunk[] {
   const maxChars = opts?.maxChars ?? 1600; // ~400 token
   const clean = stripBoilerplate(doc.body);
   const sections = splitSections(clean);
   const chunks: Chunk[] = [];
   let index = 0;
-  const push = (headingPath: string, text: string) => {
+  const push = (rawHeadingPath: string, text: string) => {
     const body = text.trim();
     if (!body) return;
+    // headingPath dedup: a doc.title-lel egyező vezető szegmenst eldobjuk
+    // (különben "Title — Title > Szekció" lenne a prefix).
+    const segs = rawHeadingPath.split(' > ');
+    if (segs[0] === doc.title) segs.shift();
+    const headingPath = segs.join(' > ');
     const prefix = `${doc.title}${headingPath ? ` — ${headingPath}` : ''}\n\n`;
     const content = prefix + body;
     chunks.push({
@@ -113,18 +152,19 @@ export function chunkDoc(
     const paras = sec.text
       .split(/\n{2,}/)
       .map((p) => p.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .flatMap((p) => splitParagraph(p, maxChars));
     let buf: string[] = [];
-    let len = 0;
     for (const p of paras) {
-      if (len > 0 && len + p.length > maxChars) {
+      const candidate = buf.length ? `${buf.join('\n\n')}\n\n${p}` : p;
+      if (buf.length && candidate.length > maxChars) {
         push(sec.headingPath, buf.join('\n\n'));
         const overlap = buf[buf.length - 1] ?? '';
-        buf = [overlap];
-        len = overlap.length;
+        // overlapot csak akkor visszük tovább, ha vele együtt is ≤ maxChars marad
+        buf = overlap.length + 2 + p.length <= maxChars ? [overlap, p] : [p];
+      } else {
+        buf.push(p);
       }
-      buf.push(p);
-      len += p.length + 2;
     }
     if (buf.join('').trim()) push(sec.headingPath, buf.join('\n\n'));
   }
