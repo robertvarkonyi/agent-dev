@@ -2,7 +2,7 @@
 # A titkok a .env-ből jönnek (nincs a repóban); lásd .env.example.
 services:
   db:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     container_name: plantbase-db
     restart: unless-stopped
     environment:

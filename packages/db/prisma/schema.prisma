@@ -36,3 +36,24 @@ model Product {
 
   @@map("products")
 }
+
+model KnowledgeChunk {
+  id           BigInt   @id @default(autoincrement())
+  doc_id       String
+  doc_title    String
+  doc_source   String
+  doc_category String
+  heading_path String
+  chunk_index  Int
+  content      String
+  content_hash String
+  related_docs String[] @default([])
+  token_count  Int
+  embedding    Unsupported("vector(1536)")
+  embed_model  String
+  indexed_at   DateTime @default(now())
+
+  @@unique([doc_id, chunk_index])
+  @@index([doc_id])
+  @@map("knowledge_chunks")
+}
