@@ -23,4 +23,16 @@ describe('buildSearchKnowledge', () => {
     const out = await tool.execute!({ query: 'x' }, {} as any);
     expect(out).toMatchObject({ grounded: false });
   });
+  // Az execute SOSEM dobhat (a dobott Error üres tool_result → Anthropic 400). Ha az answer-függvény
+  // dob (pl. hiányzó kulcs/DB), a tool beszédes, NEM üres hibaszöveget ad vissza — nem reject-el.
+  it('ha az answer dob, beszédes hibaszöveget ad vissza (nem reject)', async () => {
+    const fakeAnswer = async () => {
+      throw new Error('nincs OPENAI_API_KEY');
+    };
+    const tool = buildSearchKnowledge(fakeAnswer as any);
+    const out = await tool.execute!({ query: 'x' }, {} as any);
+    expect(typeof out).toBe('string');
+    expect(out as string).toContain('Hiba');
+    expect(out as string).toContain('nincs OPENAI_API_KEY');
+  });
 });

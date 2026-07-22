@@ -34,7 +34,15 @@ let ragPool: Pool | undefined;
 // épül fel, csak a Pool singleton.
 const liveAnswer: AnswerFn = (query: string) => {
   const cfg = loadRagConfig();
-  ragPool ??= new Pool({ connectionString: process.env.DATABASE_URL_READONLY });
+  if (!ragPool) {
+    const connectionString = process.env.DATABASE_URL_READONLY;
+    if (!connectionString) {
+      throw new Error(
+        'Hiányzik a DATABASE_URL_READONLY. Állítsd be a .env-ben.',
+      );
+    }
+    ragPool = new Pool({ connectionString });
+  }
   const deps = { providers: createProviders(cfg), store: new PgStore(ragPool) };
   return answerFromKnowledge(query, deps, {
     topN: cfg.topN,
