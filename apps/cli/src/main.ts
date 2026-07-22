@@ -8,7 +8,9 @@ import { createInterface } from 'node:readline';
 import {
   askAgent,
   buildPrompt,
-  errorMessage,
+  streamChat,
+  SYSTEM_PROMPT,
+  type ChatMessage,
   type Prompt,
 } from '@plantbase/core';
 
@@ -31,7 +33,7 @@ async function answer(input: string, showPrompt: boolean): Promise<void> {
     const { answer: text } = await askAgent(input);
     console.log(text);
   } catch (error) {
-    console.error(`Hiba: ${errorMessage(error)}`);
+    console.error(`Hiba: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -42,19 +44,50 @@ function runInteractive(showPrompt: boolean): void {
     prompt: 'plantbase> ',
   });
 
+  // A session alatt élő beszélgetés-előzmény (kilépéskor elveszik — nincs perzisztálás).
+  const history: ChatMessage[] = [];
+  // A fordulókat sorban dolgozzuk fel: minden sor az előző forduló befejezése után fut,
+  // így nincs verseny a közös history-n (egyszerre begépelt/beillesztett sorok is rendben).
+  let chain: Promise<void> = Promise.resolve();
+
+  // Egy forduló feldolgozása: a next-et FUTÁSKOR építjük a friss history-ból.
+  async function processTurn(text: string): Promise<void> {
+    const next: ChatMessage[] = [...history, { role: 'user', content: text }];
+    if (showPrompt) {
+      console.log(formatPrompt({ system: SYSTEM_PROMPT, messages: next }));
+    }
+    try {
+      const { textStream, done } = streamChat(next);
+      // A done sosem maradhat kezeletlen: stream-hiba esetén a for-await a catch-be ugrik,
+      // mielőtt az await done lefutna, és a done elutasítása Node-on process-crasht okozna.
+      done.catch(() => undefined);
+      for await (const chunk of textStream) {
+        process.stdout.write(chunk);
+      }
+      process.stdout.write('\n');
+      const { messages } = await done;
+      history.splice(0, history.length, ...messages);
+    } catch (error) {
+      console.error(`Hiba: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    rl.prompt();
+  }
+
   console.log('Plantbase interaktív mód. Kilépés: exit');
   rl.prompt();
 
-  rl.on('line', async (line) => {
+  rl.on('line', (line) => {
     const text = line.trim();
     if (text === 'exit' || text === 'quit') {
       rl.close();
       return;
     }
-    if (text.length > 0) {
-      await answer(text, showPrompt);
+    if (text.length === 0) {
+      rl.prompt();
+      return;
     }
-    rl.prompt();
+    // Sorba fűzzük; a processTurn hívja a rl.prompt()-ot a végén.
+    chain = chain.then(() => processTurn(text));
   });
 
   rl.on('close', () => {

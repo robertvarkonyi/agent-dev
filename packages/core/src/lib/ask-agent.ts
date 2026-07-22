@@ -1,13 +1,17 @@
-import Anthropic from '@anthropic-ai/sdk';
+import {
+  generateText,
+  streamText,
+  stepCountIs,
+  type LanguageModel,
+  type ModelMessage,
+} from 'ai';
 import { z } from 'zod';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import { logInteraction } from './logger.js';
-import { errorMessage } from './errors.js';
-import { TOOLS, toolDefinitions } from './tools/registry.js';
+import { resolveModel } from './provider.js';
+import { buildTools, type ToolCall } from './tools/agent-tools.js';
 
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 1024;
-// A többlépéses tool-use loop felső korlátja (védelem a végtelen ciklus ellen).
+// A többlépéses tool-use loop felső korlátja (most az SDK-é: stopWhen).
 const MAX_STEPS = 6;
 
 // A bemenet megbízhatatlan (user input): validáljuk a rendszer-határon, fail-fast.
@@ -15,22 +19,18 @@ const QuestionSchema = z.string().trim().min(1, 'A kérdés nem lehet üres.');
 
 export interface Prompt {
   system: string;
-  messages: Anthropic.MessageParam[];
+  messages: ModelMessage[];
 }
 
-// A modell válaszának content tömbjéből kinyeri az összefűzött szöveget (a nem-text blokkokat kihagyja).
-// A strukturális paramétertípus szándékos: közvetlenül elfogadja az Anthropic.ContentBlock[]-et
-// (pl. response.content) cast nélkül, ugyanakkor a tesztekben minimál blokkokkal is hívható.
-export function extractText(
-  content: ReadonlyArray<{ type: string; text?: string }>,
-): string {
-  return content
-    .filter((block) => block.type === 'text' && typeof block.text === 'string')
-    .map((block) => block.text)
-    .join('');
+export interface AgentResult {
+  answer: string;
+  usage: { input_tokens: number; output_tokens: number };
 }
 
-// A kérdésből felépíti a system promptot + üzenet-tömböt (még tool nélkül — B2).
+// A CLI ezt tartja a chat-előzményben (nem importál 'ai'-t közvetlenül).
+export type ChatMessage = ModelMessage;
+
+// A kérdésből felépíti a system promptot + üzenet-tömböt (--show-prompt + askAgent).
 export function buildPrompt(input: unknown): Prompt {
   const result = QuestionSchema.safeParse(input);
   if (!result.success) {
@@ -42,97 +42,102 @@ export function buildPrompt(input: unknown): Prompt {
   };
 }
 
-function getConfig(): { apiKey: string; model: string } {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      'Hiányzik az ANTHROPIC_API_KEY. Állítsd be a .env fájlban.',
-    );
-  }
-  return { apiKey, model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL };
+// Az AI SDK usage-mezőit a meglévő napló-alakra képezi (0 default, ha a provider nem ad értéket).
+function mapUsage(
+  u: { inputTokens?: number; outputTokens?: number } | undefined,
+): AgentResult['usage'] {
+  return {
+    input_tokens: u?.inputTokens ?? 0,
+    output_tokens: u?.outputTokens ?? 0,
+  };
 }
 
-export interface AgentResult {
-  answer: string;
-  usage: { input_tokens: number; output_tokens: number };
+// A modell azonosítója a naplóhoz (string modell-id vagy a LanguageModel.modelId).
+function modelId(model: LanguageModel): string {
+  return typeof model === 'string'
+    ? model
+    : ((model as { modelId?: string }).modelId ?? 'unknown');
 }
 
-// B3: kézzel írt, többlépéses tool-use loop. A modell SQL-t ír, a runSql toollal read-only
-// lefuttatjuk a katalóguson, az eredményt tool_result-ként visszafűzzük, és ismételjük, amíg a
-// modell természetes nyelvű választ ad (stop_reason !== 'tool_use'). NEM használjuk a toolRunner
-// helpert — a mechanika látható marad (architektura.md 3).
-export async function askAgent(input: unknown): Promise<AgentResult> {
-  const { apiKey, model } = getConfig();
+// Egyfordulós agent: a modell a buildTools tooljaival dolgozik, az SDK futtatja a
+// többlépéses loopot (stopWhen), majd természetes nyelvű választ ad. A `model` teszthez
+// injektálható; alapból az env-vezérelt resolveModel().
+export async function askAgent(
+  input: unknown,
+  model: LanguageModel = resolveModel(),
+): Promise<AgentResult> {
   const prompt = buildPrompt(input);
-  const client = new Anthropic({ apiKey });
+  const collector: ToolCall[] = [];
 
-  const messages: Anthropic.MessageParam[] = [...prompt.messages];
-  const executedSql: string[] = [];
-  const sqlResults: unknown[] = [];
-  const usage = { input_tokens: 0, output_tokens: 0 };
-  let response: Anthropic.Message | undefined;
-
-  for (let step = 0; step < MAX_STEPS; step++) {
-    response = await client.messages.create({
-      model,
-      max_tokens: MAX_TOKENS,
-      system: prompt.system,
-      messages,
-      tools: toolDefinitions,
-    });
-    usage.input_tokens += response.usage.input_tokens;
-    usage.output_tokens += response.usage.output_tokens;
-
-    if (response.stop_reason !== 'tool_use') {
-      break;
-    }
-
-    // Az assistant tool-hívását visszafűzzük, majd minden tool_use blokkra a regiszterből
-    // futtatjuk a megfelelő toolt, és tool_result-ként visszafűzzük az eredményt.
-    messages.push({ role: 'assistant', content: response.content });
-
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const block of response.content) {
-      if (block.type !== 'tool_use') {
-        continue;
-      }
-      const tool = TOOLS[block.name];
-      if (!tool) {
-        continue;
-      }
-      try {
-        const { sql, rows } = await tool.run(block.input);
-        executedSql.push(sql);
-        sqlResults.push(rows);
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: JSON.stringify(rows),
-        });
-      } catch (error) {
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: `Hiba: ${errorMessage(error)}`,
-          is_error: true,
-        });
-      }
-    }
-    messages.push({ role: 'user', content: toolResults });
-  }
-
-  const answer = response ? extractText(response.content) : '';
-
-  logInteraction({
-    timestamp: new Date().toISOString(),
+  const result = await generateText({
     model,
     system: prompt.system,
-    messages,
-    answer,
-    usage,
-    sql: executedSql.join('\n'),
-    result: sqlResults,
+    messages: prompt.messages,
+    tools: buildTools(collector),
+    stopWhen: stepCountIs(MAX_STEPS),
   });
 
-  return { answer, usage };
+  const usage = mapUsage(result.totalUsage);
+  logInteraction({
+    timestamp: new Date().toISOString(),
+    model: modelId(model),
+    system: prompt.system,
+    messages: [...prompt.messages, ...result.response.messages],
+    answer: result.text,
+    usage,
+    sql: collector.map((c) => c.sql).join('\n'),
+    result: collector.map((c) => c.rows),
+  });
+
+  return { answer: result.text, usage };
+}
+
+// A CLI felé stabil, SDK-mentes felület: token-stream + a befejezéskor feloldódó metaadat.
+export interface ChatStream {
+  textStream: AsyncIterable<string>;
+  done: Promise<{
+    answer: string;
+    usage: AgentResult['usage'];
+    messages: ChatMessage[];
+  }>;
+}
+
+// Többfordulós, streamelő agent. A hívó a teljes előzményt (messages) adja át; a done.messages
+// a bővített előzmény (bemenet + asszisztens válasz), amit a hívó visszaír. A naplózás a done
+// befejezőben történik (a hívó CLI mindig await-eli a done-t az előzmény-frissítéshez).
+export function streamChat(
+  messages: ChatMessage[],
+  model: LanguageModel = resolveModel(),
+): ChatStream {
+  const collector: ToolCall[] = [];
+  const result = streamText({
+    model,
+    system: SYSTEM_PROMPT,
+    messages,
+    tools: buildTools(collector),
+    stopWhen: stepCountIs(MAX_STEPS),
+  });
+
+  const done = (async () => {
+    const [answer, rawUsage, response] = await Promise.all([
+      result.text,
+      result.totalUsage,
+      result.response,
+    ]);
+    const usage = mapUsage(rawUsage);
+    const fullMessages: ChatMessage[] = [...messages, ...response.messages];
+    logInteraction({
+      timestamp: new Date().toISOString(),
+      model: modelId(model),
+      system: SYSTEM_PROMPT,
+      messages: fullMessages,
+      answer,
+      usage,
+      sql: collector.map((c) => c.sql).join('\n'),
+      result: collector.map((c) => c.rows),
+    });
+    return { answer, usage, messages: fullMessages };
+  })();
+
+  return { textStream: result.textStream, done };
 }
