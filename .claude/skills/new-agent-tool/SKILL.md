@@ -1,10 +1,11 @@
 ---
 name: new-agent-tool
 description: >-
-  Scaffold egy új agent-toolt a Plantbase askAgent tool-use loopjába, a repó
-  meglévő mintája szerint (runSql, listCategories). Használd, amikor a
-  felhasználó új képességet akar adni az agentnek — pl. "adj egy X toolt az
-  agentnek", "az agent tudjon Y-t is", "csinálj egy tool-t ami Z-t csinál",
+  Scaffold egy új agent-toolt a Plantbase agent tool-készletébe
+  (`agent-tools.ts`), a repó meglévő mintája szerint (runSql, listCategories).
+  Használd, amikor a felhasználó új képességet akar adni az agentnek — pl.
+  "adj egy X toolt az agentnek", "az agent tudjon Y-t is", "csinálj egy tool-t
+  ami Z-t csinál",
   vagy amikor egy új natural-language kérdésfajtát dedikált toollal (nem nyers
   SQL-lel) akartok kiszolgálni. Akkor is hívd, ha a felhasználó nem mondja ki a
   "tool" szót, de az agent új adat-képességéről van szó.
@@ -32,9 +33,12 @@ döntésben, nézd meg élőben, hogyan csinálja:
 Mielőtt kódot írsz, legyen egyértelmű (kérdezz vissza, ha hiányzik):
 
 - **Név** (`camelCase`, ige-szerű, pl. `findCheapest`, `plantDetails`).
-- **Input**: van-e paramétere? Ha nincs (mint `listCategories`), üres
-  `properties`. Ha van, minden mező JSON Schema-ban, `required` listával.
-- **Mit ad vissza** és milyen alakban (a modellhez `JSON.stringify`-olva megy).
+- **Input**: van-e paramétere? Ha nincs (mint `listCategories`), `inputSchema:
+  z.object({})`. Ha van, minden mező `zod` sémában (pl. `z.object({ mező:
+  z.string().describe('...') })`) — ez `zod` séma, nem JSON Schema.
+- **Mit ad vissza** és milyen alakban: az `execute` a végleges értéket (pl. a
+  `rows`-t) adja vissza — a modellnek küldött szerializálást az AI SDK végzi,
+  nem kell kézzel `JSON.stringify`-olni.
 - **Kell-e új SQL?** Ha egy fix lekérdezésről van szó, tedd exportált
   konstansba (mint `CATEGORIES_SQL`), és **hasznosítsd újra a `runSql`-t** —
   így ingyen kapod a SELECT-guardot + read-only role védelmet. Ne nyiss új
