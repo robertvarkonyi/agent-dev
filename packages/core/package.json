@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.86",
+    "@plantbase/rag": "workspace:*",
     "ai": "^5.0.214",
     "pg": "^8.22.0",
     "tslib": "^2.3.0",

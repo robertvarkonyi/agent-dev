@@ -1,8 +1,16 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
+import { Pool } from 'pg';
+import {
+  loadRagConfig,
+  createProviders,
+  PgStore,
+  answerFromKnowledge,
+} from '@plantbase/rag';
 import { errorMessage } from '../errors.js';
 import { runSql } from './run-sql.js';
 import { listCategories, CATEGORIES_SQL } from './list-categories.js';
+import { buildSearchKnowledge, type AnswerFn } from './search-knowledge.js';
 
 // Egy tool-hívás naplózandó nyoma: a ténylegesen futott SQL + a modellnek adott sorok.
 export interface ToolCall {
@@ -17,6 +25,23 @@ export interface ToolCall {
 function toolError(error: unknown): string {
   return `Hiba: ${errorMessage(error)}`;
 }
+
+// Lazy singleton Pool a READ-ONLY kapcsolaton (run-sql.ts mintájára) — a searchKnowledge is csak
+// olvas, a DATABASE_URL (RW/owner) itt SOSEM használható. Az ingestion (Task 10 CLI) az egyetlen író.
+let ragPool: Pool | undefined;
+
+// Éles AnswerFn: a RAG pipeline (config + providers + PgStore) minden híváskor a friss configgal
+// épül fel, csak a Pool singleton.
+const liveAnswer: AnswerFn = (query: string) => {
+  const cfg = loadRagConfig();
+  ragPool ??= new Pool({ connectionString: process.env.DATABASE_URL_READONLY });
+  const deps = { providers: createProviders(cfg), store: new PgStore(ragPool) };
+  return answerFromKnowledge(query, deps, {
+    topN: cfg.topN,
+    topK: cfg.topK,
+    minRerankScore: cfg.minRerankScore,
+  });
+};
 
 // A tool-ok egyetlen helye (ez váltja az inline Anthropic.Tool konstansokat). Új tool = egy
 // bejegyzés ide. A `collector` futás-hatókörű: minden execute mellékhatásként belépteti a
@@ -55,5 +80,6 @@ export function buildTools(collector: ToolCall[]): ToolSet {
         }
       },
     }),
+    searchKnowledge: buildSearchKnowledge(liveAnswer),
   };
 }

@@ -102,6 +102,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^2.0.86
         version: 2.0.86(zod@4.4.3)
+      '@plantbase/rag':
+        specifier: workspace:*
+        version: link:../rag
       ai:
         specifier: ^5.0.214
         version: 5.0.214(zod@4.4.3)
