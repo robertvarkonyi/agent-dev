@@ -6,3 +6,4 @@ export * from './lib/store.js';
 export * from './lib/ingest.js';
 export * from './lib/retrieve.js';
 export * from './lib/answer.js';
+export * from './lib/golden.js';
