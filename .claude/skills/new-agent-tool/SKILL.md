@@ -12,11 +12,14 @@ description: >-
 
 # Új agent-tool hozzáadása (Plantbase)
 
-A Plantbase agent egy kézzel írt, többlépéses tool-use loop
-([ask-agent.ts](../../../packages/core/src/lib/ask-agent.ts)). Egy tool
-hozzáadása **mindig ugyanaz az 5 lépés, ugyanabban a sorrendben**. Ez a skill
-ezt a mintát viszi végig, hogy ne maradjon ki egyik hely sem (a leggyakoribb
-hiba: a loopba bekötöd, de a system promptból kimarad, így a modell nem tudja,
+A Plantbase agent többlépéses tool-use loopját a Vercel AI SDK futtatja
+([ask-agent.ts](../../../packages/core/src/lib/ask-agent.ts)); a tool-ok
+egyetlen helyen, az
+[agent-tools.ts](../../../packages/core/src/lib/agent-tools.ts) `buildTools`
+függvényében élnek. Egy tool hozzáadása **mindig ugyanaz a 4 lépés,
+ugyanabban a sorrendben**. Ez a skill ezt a mintát viszi végig, hogy ne
+maradjon ki egyik hely sem (a leggyakoribb hiba: a toolt bekötöd az
+`agent-tools.ts`-be, de a system promptból kimarad, így a modell nem tudja,
 mikor hívja).
 
 A minta a `listCategories` toolból lett kiolvasva — ha bizonytalan vagy egy
@@ -47,7 +50,7 @@ pontosan úgy, ahogy a `list-categories.spec.ts` az `extractCategories`-t
 teszteli, nem a `listCategories` DB-hívást. Előbb írd meg a bukó tesztet a
 kinyerő/transzformáló függvényre, aztán az implementációt.
 
-## Az 5 lépés
+## A 4 lépés
 
 ### 1. Implementációs fájl — `packages/core/src/lib/<tool-név>.ts`
 
@@ -68,41 +71,34 @@ kinyerő/transzformáló függvényre, aztán az implementációt.
   edge, hibás/hiányzó mező, üres bemenet.
 - Futtasd zöldre (lásd Verifikáció).
 
-### 3. Tool-definíció — `ask-agent.ts`
+### 3. Tool bekötése — `agent-tools.ts`
 
-Új `Anthropic.Tool` konstans a `LIST_CATEGORIES_TOOL` mellé. A `description`
-mondja meg a modellnek, **mit** csinál és **mikor** hívja:
+Egy új bejegyzés a `buildTools` által visszaadott objektumba, a meglévők (`runSql`,
+`listCategories`) mintájára — AI SDK `tool()` + `zod` `inputSchema` + `execute`:
 
 ```ts
-const FIND_CHEAPEST_TOOL: Anthropic.Tool = {
-  name: 'findCheapest',
+findCheapest: tool({
   description:
     'A legolcsóbb N termék egy kategóriában. Akkor hívd, ha a felhasználó a legolcsóbbra kérdez.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      category: { type: 'string', description: 'A kategória neve.' },
-    },
-    required: ['category'],
+  inputSchema: z.object({
+    category: z.string().describe('A kategória neve.'),
+  }),
+  execute: async ({ category }) => {
+    const { sql, rows } = await runSql(
+      `SELECT name, COALESCE(sale_price, price) AS ar FROM products WHERE category ILIKE '${category}' ORDER BY ar LIMIT 5`,
+    );
+    collector.push({ sql, rows });   // a naplózáshoz — MINDIG told be
+    return rows;                     // a modellhez csak a rows megy
   },
-};
+}),
 ```
 
-### 4. Bekötés a loopba — `ask-agent.ts`
+Az `execute` **mindig** told a `{ sql, rows }`-t a `collector`-ba (ez a JSONL-napló forrása),
+és a `rows`-t adja vissza a modellnek. A hibát nem kézzel kezeled: az AI SDK a dobott hibát
+tool-eredményként adja vissza a modellnek. Nincs külön loop-bekötés — a `buildTools` egy
+helye elég (az `askAgent` és a `streamChat` automatikusan megkapja).
 
-Két helyen, együtt:
-
-- A `client.messages.create({ ... tools: [...] })` **`tools` tömbjébe** vedd fel
-  az új konstanst.
-- A `for (const block of response.content)` ciklusba egy új
-  `block.type === 'tool_use' && block.name === '<tool-név>'` ág, a meglévők
-  mintájára: hívd az implementációt, `executedSql.push(...)` +
-  `sqlResults.push(...)` a naplózáshoz, és `toolResults.push({ type:
-  'tool_result', tool_use_id: block.id, content: JSON.stringify(...) })`.
-  A hibát **`try/catch`-eld**, és `is_error: true` tool_result-tal add vissza —
-  ne dobd el a loopból (a többi tool-hívás fusson tovább).
-
-### 5. System prompt — `system-prompt.ts`
+### 4. System prompt — `system-prompt.ts`
 
 A `<tools>` blokkba egy sor az új toolról: mit ad vissza és **pontosan mikor**
 hívja (a modell ebből dönt). Ez a lépés a leggyakrabban felejtődik ki — enélkül
@@ -111,7 +107,7 @@ a tool ott van, de a modell nem tudja használni.
 Ha a tool új domain-fogalmat vagy szabályt hoz, a `<rules>` / `<schema>` blokkot
 is frissítsd.
 
-### (opcionális) 6. Export — `index.ts`
+### (opcionális) 5. Export — `index.ts`
 
 Ha a toolt a `@plantbase/core` csomagon kívülről is hívni kell (CLI, teszt),
 vedd fel a [index.ts](../../../packages/core/src/index.ts) `export *`-jai közé.
@@ -123,7 +119,7 @@ Node 22 kell (a repó `.nvmrc`-je), a harness shell alapból node 20-at ad:
 ```bash
 nvm use 22
 pnpm vitest related --run packages/core/src/lib/<tool-név>.spec.ts   # a friss teszt zöld
-pnpm nx typecheck core                                              # a loop-bekötés típushelyes
+pnpm nx typecheck core                                              # a tool-bekötés típushelyes
 ```
 
 Csak akkor jelentsd késznek, ha mindkettő zöld. A commit külön lépés (a
