@@ -19,24 +19,24 @@ Példák: `feat: add read-only runSql tool`, `test: cover runSql SELECT-only gua
 
 Minden befejezett, koherens lépés után kicsi, fókuszált commit (egy lépés = egy commit). Lásd a `Stop` hookot.
 
-## Hookok (`settings.json`)
+## Hookok (`.claude/settings.json`)
 
 ```json
 {
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "pnpm prettier --write $FILE",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/format.sh\"",
             "timeout": 10000,
             "async": true
           },
           {
             "type": "command",
-            "command": "pnpm vitest related --run $FILE",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/test-related.sh\"",
             "timeout": 60000,
             "async": true
           }
@@ -47,8 +47,14 @@ Minden befejezett, koherens lépés után kicsi, fókuszált commit (egy lépés
 }
 ```
 
-- **prettier** (PostToolUse, Edit): formázás szerkesztés után.
-- **teszt** (PostToolUse, Edit): a változáshoz tartozó Vitest fut.
+- **prettier** ([.claude/hooks/format.sh](../.claude/hooks/format.sh)): formázás szerkesztés után.
+- **teszt** ([.claude/hooks/test-related.sh](../.claude/hooks/test-related.sh)): a változáshoz tartozó Vitest (`vitest related`) fut.
+
+A szerkesztett fájl útját a hookok a payload **stdin JSON `tool_input.file_path`**
+mezőjéből olvassák — a Claude Code nem expandál `$FILE`-t, ezért kis wrapper
+scriptek kapják el a fájlt (támogatott kiterjesztésekre szűrve, fail-soft: a hook
+sosem blokkolja a szerkesztést). A `matcher` `Edit|Write`, hogy az új fájlok
+(`Write`) is formázódjanak/teszteljenek.
 
 FONTOS: a hookok a **Claude Code (L1) akcióit** fogják meg (amit Claude szerkeszt/futtat), NEM a termék futásidejű SQL-jét. A termék read-only védelme a **DB-kapcsolat (read-only role)**, nem hook, mert a `runSql` a termék kódja, nem Claude Code tool.
 

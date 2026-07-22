@@ -1,7 +1,8 @@
 import { runSql } from './run-sql.js';
 
 // A distinct kategóriák lekérdezése (rendezett). A runSql SELECT-guardja + a read-only role védi.
-export const CATEGORIES_SQL = 'SELECT DISTINCT category FROM products ORDER BY category';
+export const CATEGORIES_SQL =
+  'SELECT DISTINCT category FROM products ORDER BY category';
 
 // A DB-ből jövő sorok megbízhatatlanok (unknown[]): a category string mezőt szűrjük ki,
 // a nem-string / üres értéket eldobjuk, és defenzíven dedupálunk. Sosem dob (fail-soft).

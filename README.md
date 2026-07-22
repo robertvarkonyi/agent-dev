@@ -1,8 +1,8 @@
 # Plantbase
 
 Parancssori (CLI) **AI agent**, amely egy növény-katalógus felett válaszol
-természetes nyelvű kérdésekre. A felhasználó magyarul kérdez (pl. *„mi a
-legolcsóbb kaktusz raktáron?"*), az agent a kérdést **SQL-re fordítja**,
+természetes nyelvű kérdésekre. A felhasználó magyarul kérdez (pl. _„mi a
+legolcsóbb kaktusz raktáron?"_), az agent a kérdést **SQL-re fordítja**,
 **read-only** lefuttatja a `products` táblán, és az eredményből **természetes
 nyelvű választ** ad — önkiszolgáló analitika SQL-tudás nélkül.
 
@@ -24,8 +24,9 @@ plantbase/
 ```
 
 Kulcsfájlok: [ask-agent.ts](packages/core/src/lib/ask-agent.ts) (a
-tool-use loop), [run-sql.ts](packages/core/src/lib/run-sql.ts) (SELECT-guard),
-[list-categories.ts](packages/core/src/lib/list-categories.ts),
+tool-use loop), [tools/registry.ts](packages/core/src/lib/tools/registry.ts)
+(tool-regiszter: definíció + handler), [tools/run-sql.ts](packages/core/src/lib/tools/run-sql.ts)
+(SELECT-guard), [tools/list-categories.ts](packages/core/src/lib/tools/list-categories.ts),
 [system-prompt.ts](packages/core/src/lib/system-prompt.ts),
 [main.ts](apps/cli/src/main.ts) (CLI belépési pont).
 
@@ -74,12 +75,19 @@ Részletek és a `products` séma: [docs/stack.md](docs/stack.md).
    pnpm cli --show-prompt ask "..."                     # a teljes prompt kiírásával
    ```
 
-5. **Tesztek / típusellenőrzés:**
+5. **Tesztek / típusellenőrzés / lint:**
 
    ```bash
-   pnpm vitest
-   pnpm nx typecheck core
+   pnpm vitest              # tesztek
+   pnpm nx typecheck core   # típusellenőrzés (a mag)
+   pnpm lint                # ESLint (flat config), pnpm lint:fix a javításhoz
+   pnpm format              # Prettier az egész repóra
    ```
+
+   Szerkesztés után **Claude Code hookok** (`.claude/settings.json`, `PostToolUse`
+   / `Edit`) automatikusan lefuttatják a `prettier --write`-ot és a szerkesztett
+   fájlhoz tartozó `vitest related` tesztet — így a formázás és a tesztek
+   azonnal érvényesülnek. Részletek: [docs/dev-workflow.md](docs/dev-workflow.md).
 
 ## Custom skillek
 
@@ -87,12 +95,13 @@ A [.claude/skills/](.claude/skills/) alatt két projekt-specifikus skill él.
 Ezek a `/<skill-név>` beírásával, vagy automatikusan (a leírásuk alapján)
 hívódnak, amikor a kérés illik rájuk. Mindkettő futtatásához Node 22 kell.
 
-- **`new-agent-tool`** — új tool scaffoldolása az agent tool-use loopjába, a
-  repó meglévő mintája szerint (runSql, listCategories). Végigviszi a fix
-  **5 lépést**: implementációs fájl → teszt (TDD) → tool-definíció → bekötés a
-  loopba → **system prompt frissítése** (ez a leggyakrabban kifelejtett lépés)
-  → opcionális export. Akkor indul, ha az agentnek új adat-képességet akarsz
-  adni (pl. „adj egy `findCheapest` toolt az agentnek").
+- **`new-agent-tool`** — új tool scaffoldolása az agent **tool-regiszterébe**
+  ([tools/registry.ts](packages/core/src/lib/tools/registry.ts)), a repó meglévő
+  mintája szerint (runSql, listCategories). Végigviszi a fix **4 lépést**:
+  implementációs fájl → teszt (TDD) → regisztráció (definíció + handler a
+  `TOOLS` mapbe — a loopot nem kell módosítani) → **system prompt frissítése**
+  (ez a leggyakrabban kifelejtett lépés) → opcionális export. Akkor indul, ha az
+  agentnek új adat-képességet akarsz adni (pl. „adj egy `findCheapest` toolt").
 
 - **`agent-eval`** — regressziós kiértékelés a valódi agenten egy golden
   kérdéskészlettel. Kétlépéses: (1) determinista futtatás scripttel (élő API +

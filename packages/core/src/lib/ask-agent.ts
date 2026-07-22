@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { SYSTEM_PROMPT } from './system-prompt.js';
 import { logInteraction } from './logger.js';
 import { resolveModel } from './provider.js';
-import { buildTools, type ToolCall } from './agent-tools.js';
+import { buildTools, type ToolCall } from './tools/agent-tools.js';
 
 // A többlépéses tool-use loop felső korlátja (most az SDK-é: stopWhen).
 const MAX_STEPS = 6;
@@ -46,14 +46,17 @@ export function buildPrompt(input: unknown): Prompt {
 function mapUsage(
   u: { inputTokens?: number; outputTokens?: number } | undefined,
 ): AgentResult['usage'] {
-  return { input_tokens: u?.inputTokens ?? 0, output_tokens: u?.outputTokens ?? 0 };
+  return {
+    input_tokens: u?.inputTokens ?? 0,
+    output_tokens: u?.outputTokens ?? 0,
+  };
 }
 
 // A modell azonosítója a naplóhoz (string modell-id vagy a LanguageModel.modelId).
 function modelId(model: LanguageModel): string {
   return typeof model === 'string'
     ? model
-    : (model as { modelId?: string }).modelId ?? 'unknown';
+    : ((model as { modelId?: string }).modelId ?? 'unknown');
 }
 
 // Egyfordulós agent: a modell a buildTools tooljaival dolgozik, az SDK futtatja a

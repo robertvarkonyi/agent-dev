@@ -2,11 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // A naplózást elkapjuk (az invariáns: minden interakció naplózódik).
 const logSpy = vi.fn();
-vi.mock('./logger.js', () => ({ logInteraction: (...a: unknown[]) => logSpy(...a) }));
+vi.mock('./logger.js', () => ({
+  logInteraction: (...a: unknown[]) => logSpy(...a),
+}));
 
 // A DB-t mockoljuk, hogy a tool-execute hálózat nélkül fusson.
-vi.mock('./run-sql.js', () => ({
-  runSql: vi.fn(async (q: string) => ({ sql: q.trim(), rows: [{ n: 1 }], rowCount: 1 })),
+vi.mock('./tools/run-sql.js', () => ({
+  runSql: vi.fn(async (q: string) => ({
+    sql: q.trim(),
+    rows: [{ n: 1 }],
+    rowCount: 1,
+  })),
 }));
 
 // Az 'ai'-ból a generateText-et és a streamText-et stuboljuk; a tool()/stepCountIs valódi marad.
@@ -75,16 +81,20 @@ describe('askAgent', () => {
   it('naplózza az interakciót, benne a collector SQL-jével és a user kérdéssel', async () => {
     // A stubolt generateText lefuttatja a runSql toolt, hogy a collector megteljen.
     generateTextMock.mockImplementation(
-      async (opts: { tools: ReturnType<typeof import('./agent-tools.js').buildTools> }) => {
-        await opts.tools.runSql.execute!(
-          { query: 'SELECT * FROM products' },
-          { toolCallId: 't', messages: [] } as never,
-        );
+      async (opts: {
+        tools: ReturnType<typeof import('./tools/agent-tools.js').buildTools>;
+      }) => {
+        await opts.tools.runSql.execute!({ query: 'SELECT * FROM products' }, {
+          toolCallId: 't',
+          messages: [],
+        } as never);
         return {
           text: 'Egy termék.',
           usage: { inputTokens: 1, outputTokens: 1 },
           totalUsage: { inputTokens: 1, outputTokens: 1 },
-          response: { messages: [{ role: 'assistant', content: 'Egy termék.' }] },
+          response: {
+            messages: [{ role: 'assistant', content: 'Egy termék.' }],
+          },
         };
       },
     );
@@ -99,7 +109,10 @@ describe('askAgent', () => {
     expect(entry.answer).toBe('Egy termék.');
     // A naplózott messages-nek tartalmaznia kell a user kérdését is, nem csak az asszisztens
     // válaszát (response.messages önmagában csak asszisztens/tool üzeneteket ad vissza).
-    expect(entry.messages[0]).toEqual({ role: 'user', content: 'mutass egy terméket' });
+    expect(entry.messages[0]).toEqual({
+      role: 'user',
+      content: 'mutass egy terméket',
+    });
   });
 });
 

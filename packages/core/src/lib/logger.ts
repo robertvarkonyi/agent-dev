@@ -13,11 +13,13 @@ export interface InteractionLog {
   result?: unknown;
 }
 
-// Az interakciót JSONL-be írja: logs/<timestamp>.jsonl. Visszaadja a fájl útját.
+// Az interakciót JSONL-be írja (soronként egy rekord), naponta egy fájlba: logs/<YYYY-MM-DD>.jsonl.
+// Append-only, így egy nap összes interakciója egy — utólag streamelhető — fájlban gyűlik.
+// Visszaadja a fájl útját.
 export function logInteraction(entry: InteractionLog, dir = 'logs'): string {
   mkdirSync(dir, { recursive: true });
-  const safeStamp = entry.timestamp.replace(/[:.]/g, '-');
-  const file = join(dir, `${safeStamp}.jsonl`);
+  const day = entry.timestamp.slice(0, 10); // YYYY-MM-DD az ISO-időbélyegből
+  const file = join(dir, `${day}.jsonl`);
   appendFileSync(file, `${JSON.stringify(entry)}\n`, 'utf8');
   return file;
 }

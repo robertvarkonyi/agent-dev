@@ -1,5 +1,6 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
+import { errorMessage } from '../errors.js';
 import { runSql } from './run-sql.js';
 import { listCategories, CATEGORIES_SQL } from './list-categories.js';
 
@@ -14,7 +15,7 @@ export interface ToolCall {
 // amit az Anthropic 400-zal elutasít (is_error + üres content). A visszaadott szöveget a modell
 // olvassa, és a system prompt szerint javított lekérdezéssel újrapróbál.
 function toolError(error: unknown): string {
-  return `Hiba: ${error instanceof Error ? error.message : String(error)}`;
+  return `Hiba: ${errorMessage(error)}`;
 }
 
 // A tool-ok egyetlen helye (ez váltja az inline Anthropic.Tool konstansokat). Új tool = egy
@@ -26,7 +27,9 @@ export function buildTools(collector: ToolCall[]): ToolSet {
       description:
         'Read-only SQL (SELECT) futtatása a products katalóguson. A generált SELECT-et mindig ezzel futtasd, majd az eredményből válaszolj.',
       inputSchema: z.object({
-        query: z.string().describe('A futtatandó SELECT lekérdezés (PostgreSQL).'),
+        query: z
+          .string()
+          .describe('A futtatandó SELECT lekérdezés (PostgreSQL).'),
       }),
       execute: async ({ query }) => {
         try {
