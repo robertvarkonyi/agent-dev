@@ -1,5 +1,5 @@
 import type { RagConfig } from '../config.js';
-import type { UsageTracker } from './usage.js';
+import { UsageFn, type UsageTracker } from './usage.js';
 import { embedFromOpenAI } from './openai-embeddings.js';
 import { rerankFromJina } from './jina-rerank.js';
 import { hydeFromAnthropic, answerFromAnthropic } from './anthropic-gen.js';
@@ -19,7 +19,11 @@ export interface Providers {
 const tokenize = (s: string) => s.toLowerCase().match(/[a-z0-9]+/g) ?? [];
 
 export class FakeProviders implements Providers {
+  constructor(private readonly tracker?: UsageTracker) {}
+
   async embed(texts: string[]): Promise<number[][]> {
+    this.tracker?.add('openai', 'fake-embed', UsageFn.embedding, texts.length);
+
     return texts.map((t) => {
       const v = new Array(1536).fill(0);
 
@@ -40,6 +44,8 @@ export class FakeProviders implements Providers {
   }
 
   async hyde(query: string): Promise<string> {
+    this.tracker?.add('anthropic', 'fake-hyde', UsageFn.hyde, 1);
+
     return `Hypothetical answer about: ${query}`;
   }
 
@@ -48,6 +54,8 @@ export class FakeProviders implements Providers {
     docs: string[],
     topN: number,
   ): Promise<RerankHit[]> {
+    this.tracker?.add('jina', 'fake-rerank', UsageFn.rerank, 1);
+
     const q = new Set(tokenize(query));
 
     return docs
@@ -62,6 +70,8 @@ export class FakeProviders implements Providers {
   }
 
   async answer(_system: string, prompt: string): Promise<string> {
+    this.tracker?.add('anthropic', 'fake-answer', UsageFn.answer, 1);
+
     return `ANSWER: ${prompt.slice(0, 80)}`;
   }
 }

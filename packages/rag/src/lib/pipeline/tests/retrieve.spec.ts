@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { retrieve } from '../retrieve.js';
 import { FakeProviders } from '../../providers/providers.js';
+import { UsageTracker } from '../../providers/usage.js';
 import { InMemoryStore } from '../../storage/store.js';
 import type { StoredChunk } from '../../storage/store.js';
 
@@ -56,5 +57,24 @@ describe('retrieve', () => {
       full[1]?.rerankScore ?? 0,
     );
     expect(full[0].docId).toBe('holes'); // a rerank a pontosan releváns doksit hozza elöl
+  });
+
+  it('full módban a providerekbe fűzött tracker rögzíti a hyde/embedding/rerank funkciókat', async () => {
+    const store = new InMemoryStore();
+    const tracker = new UsageTracker();
+    const p = new FakeProviders(tracker);
+    await seed(store, p);
+
+    await retrieve(
+      'holes in monstera leaves',
+      { providers: p, store },
+      { mode: 'full', topN: 5, topK: 2 },
+    );
+
+    const fns = tracker.snapshot().map((u) => u.fn);
+
+    expect(fns).toContain('hyde');
+    expect(fns).toContain('embedding');
+    expect(fns).toContain('rerank');
   });
 });

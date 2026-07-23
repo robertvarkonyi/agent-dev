@@ -1,7 +1,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 import type { RagConfig } from '../config.js';
-import type { UsageTracker } from './usage.js';
+import { UsageFn, type UsageTracker } from './usage.js';
 
 const HYDE_SYSTEM =
   'You write a short, factual hypothetical passage (3-5 sentences) that would answer the question, ' +
@@ -30,7 +30,7 @@ export async function hydeFromAnthropic(
     prompt: query,
   });
 
-  tracker?.add('anthropic', cfg.hydeModel, totalTokens(usage));
+  tracker?.add('anthropic', cfg.hydeModel, UsageFn.hyde, totalTokens(usage));
 
   return text;
 }
@@ -48,7 +48,12 @@ export async function answerFromAnthropic(
     prompt,
   });
 
-  tracker?.add('anthropic', cfg.answerModel, totalTokens(usage));
+  tracker?.add(
+    'anthropic',
+    cfg.answerModel,
+    UsageFn.answer,
+    totalTokens(usage),
+  );
 
   return text;
 }

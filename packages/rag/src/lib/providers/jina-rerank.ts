@@ -1,6 +1,6 @@
 import type { RagConfig } from '../config.js';
 import type { RerankHit } from './providers.js';
-import type { UsageTracker } from './usage.js';
+import { UsageFn, type UsageTracker } from './usage.js';
 
 // Jina rerank (cross-encoder). A válasz `results[].index`/`relevance_score` alakja adja a
 // Providers.rerank szerződését. Többnyelvű modell (magyar query is).
@@ -39,7 +39,12 @@ export async function rerankFromJina(
     usage?: { total_tokens?: number };
   };
 
-  tracker?.add('jina', cfg.rerankModel, json.usage?.total_tokens ?? 0);
+  tracker?.add(
+    'jina',
+    cfg.rerankModel,
+    UsageFn.rerank,
+    json.usage?.total_tokens ?? 0,
+  );
 
   return json.results.map((r) => ({
     index: r.index,

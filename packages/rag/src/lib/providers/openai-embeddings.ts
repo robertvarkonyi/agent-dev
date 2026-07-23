@@ -1,7 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { embedMany } from 'ai';
 import type { RagConfig } from '../config.js';
-import type { UsageTracker } from './usage.js';
+import { UsageFn, type UsageTracker } from './usage.js';
 
 export async function embedFromOpenAI(
   cfg: RagConfig,
@@ -14,7 +14,7 @@ export async function embedFromOpenAI(
     values: texts,
   });
 
-  tracker?.add('openai', cfg.embedModel, usage?.tokens ?? 0);
+  tracker?.add('openai', cfg.embedModel, UsageFn.embedding, usage?.tokens ?? 0);
 
   return embeddings;
 }
