@@ -25,11 +25,10 @@ import {
   renderGoldenMarkdown,
   GOLDEN_QUESTIONS,
   UsageTracker,
-  toTokenBreakdown,
   type IngestProgress,
   type GoldenProgress,
 } from '@plantbase/rag';
-import { formatTokenBreakdown } from './token-report.js';
+import { formatTokenBreakdown, formatProviderUsage } from './token-report.js';
 
 function formatPrompt(prompt: Prompt): string {
   return [
@@ -187,7 +186,7 @@ async function ragIndex(): Promise<void> {
     console.log(
       `\nKész. Indexelve: ${result.indexed}, kihagyva (nincs változás): ${result.skipped}, törölve (már nincs fájl): ${result.deleted}`,
     );
-    console.log(formatTokenBreakdown(toTokenBreakdown(usage.snapshot())));
+    console.log(formatProviderUsage(usage.snapshot(), usage.totalTokens()));
   } finally {
     await pool.end();
   }
@@ -259,7 +258,7 @@ async function ragGolden(): Promise<void> {
     console.log(
       `  Rerank átrendezte a #1-et: ${reordered} kérdésnél. Grounding az elvárt módon: ${groundingOk}/${report.rows.length}.`,
     );
-    console.log(formatTokenBreakdown(toTokenBreakdown(usage.snapshot())));
+    console.log(formatProviderUsage(usage.snapshot(), usage.totalTokens()));
   } finally {
     await pool.end();
   }
