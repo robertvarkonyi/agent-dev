@@ -47,13 +47,13 @@ Az SDK-tól függetlenül változatlanul megmarad:
 
 ## Döntések (a brainstorming során rögzítve)
 
-| Kérdés | Döntés |
-|--------|--------|
-| Fő cél | provider-rugalmasság + többfordulós memória + streaming |
-| A rewrite hatóköre | **A core újraírása**, mindkét parancs (`ask` + `chat`) rá épül |
-| Providerek | **Csak Anthropic**, env-vezérelt factory-val (csere-kész) |
-| SDK-verzió | **`ai@^5` + `@ai-sdk/anthropic@^2`** (a legújabb v7; a bump külön follow-up) |
-| Tool-ok helye | **Dedikált `agent-tools.ts` modul** (`buildTools(collector)`) |
+| Kérdés             | Döntés                                                                       |
+| ------------------ | ---------------------------------------------------------------------------- |
+| Fő cél             | provider-rugalmasság + többfordulós memória + streaming                      |
+| A rewrite hatóköre | **A core újraírása**, mindkét parancs (`ask` + `chat`) rá épül               |
+| Providerek         | **Csak Anthropic**, env-vezérelt factory-val (csere-kész)                    |
+| SDK-verzió         | **`ai@^5` + `@ai-sdk/anthropic@^2`** (a legújabb v7; a bump külön follow-up) |
+| Tool-ok helye      | **Dedikált `agent-tools.ts` modul** (`buildTools(collector)`)                |
 
 ## Architektúra
 
@@ -78,21 +78,26 @@ A mai inline `Anthropic.Tool` konstansok + hardkódolt loop-ágak helyett **egy 
 inline mintát, és ez lesz a new-agent-tool skill új célpontja.
 
 ```ts
-import { tool, stepCountIs } from 'ai';   // stepCountIs a loophoz, lásd 3.
+import { tool, stepCountIs } from 'ai'; // stepCountIs a loophoz, lásd 3.
 import { z } from 'zod';
 
-export interface ToolCall { sql: string; rows: unknown }
+export interface ToolCall {
+  sql: string;
+  rows: unknown;
+}
 
 // A futás-hatókörű collector minden tool-hívásnál töltődik (naplózáshoz).
 export function buildTools(collector: ToolCall[]) {
   return {
     runSql: tool({
       description: 'Read-only SQL (SELECT) futtatása a products katalóguson. …',
-      inputSchema: z.object({ query: z.string().describe('A futtatandó SELECT (PostgreSQL).') }),
+      inputSchema: z.object({
+        query: z.string().describe('A futtatandó SELECT (PostgreSQL).'),
+      }),
       execute: async ({ query }) => {
         const { sql, rows } = await runSql(query);
         collector.push({ sql, rows });
-        return rows;                        // csak a sorok mennek a modellhez
+        return rows; // csak a sorok mennek a modellhez
       },
     }),
     listCategories: tool({
@@ -120,7 +125,7 @@ validációt (a `Prompt` típus is marad, a `--show-prompt` miatt). Az `extractT
 (az SDK közvetlenül ad `text`-et — a két tesztje elmarad). Két függvény:
 
 - **`askAgent(input): Promise<AgentResult>`** — egyfordulós, `generateText({ model, system,
-  messages, tools, stopWhen: stepCountIs(6) })`. Az SDK `usage.inputTokens/outputTokens`-t
+messages, tools, stopWhen: stepCountIs(6) })`. Az SDK `usage.inputTokens/outputTokens`-t
   a meglévő `{ input_tokens, output_tokens }` alakra képezi (0 default, ha a provider nem ad
   értéket). Egyszer naplóz `logInteraction`-nal, az SQL-t a collectorból véve. Ez hajtja az
   `ask`-ot. A `MAX_STEPS` (6) → `stopWhen: stepCountIs(6)` — ugyanaz a végtelen-loop védelem.
@@ -129,10 +134,14 @@ validációt (a `Prompt` típus is marad, a `--show-prompt` miatt). Az `extractT
   Egy kis stabil wrappert ad vissza, hogy a CLI soha ne érintse az SDK-típusokat:
 
   ```ts
-  export type ChatMessage = ModelMessage;          // az 'ai' ModelMessage alias
+  export type ChatMessage = ModelMessage; // az 'ai' ModelMessage alias
   export interface ChatStream {
     textStream: AsyncIterable<string>;
-    done: Promise<{ answer: string; usage: AgentResult['usage']; messages: ChatMessage[] }>;
+    done: Promise<{
+      answer: string;
+      usage: AgentResult['usage'];
+      messages: ChatMessage[];
+    }>;
   }
   ```
 

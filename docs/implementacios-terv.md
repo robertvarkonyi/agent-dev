@@ -13,17 +13,17 @@
 A teljes terv megvalósult; a `main`-en fut a működő Plantbase (élő kérdés → helyes SQL →
 helyes válasz, read-only garanciával és naplózással). Lépésenként egy commit, fázisonként PR.
 
-| Lépés | Commit | PR |
-|---|---|---|
-| A1 Nx workspace + pnpm | `9300815` | #2 |
-| A2 cli/core/db projektek | `6921435` | #2 |
-| A3 Postgres + read-only role | `4d9d949` | #2 |
-| A4 Prisma séma + migráció | `abcd276` | #2 |
-| A5 seed bekötése (30 növény) | `98e5ebe` | #2 |
-| A6 üres CLI belépési pont | `50f911e` | #2 |
-| B1 CLI echo | `9ad3ad4` (+teszt `1e82a9f`) | #3 |
-| B2 LLM, DB nélkül | `4a826a6` | #4 |
-| B3 runSql tool + multistep loop | `658be75` | #5 |
+| Lépés                           | Commit                       | PR  |
+| ------------------------------- | ---------------------------- | --- |
+| A1 Nx workspace + pnpm          | `9300815`                    | #2  |
+| A2 cli/core/db projektek        | `6921435`                    | #2  |
+| A3 Postgres + read-only role    | `4d9d949`                    | #2  |
+| A4 Prisma séma + migráció       | `abcd276`                    | #2  |
+| A5 seed bekötése (30 növény)    | `98e5ebe`                    | #2  |
+| A6 üres CLI belépési pont       | `50f911e`                    | #2  |
+| B1 CLI echo                     | `9ad3ad4` (+teszt `1e82a9f`) | #3  |
+| B2 LLM, DB nélkül               | `4a826a6`                    | #4  |
+| B3 runSql tool + multistep loop | `658be75`                    | #5  |
 
 ### Főbb eltérések a tervtől (megvalósítás közben)
 
@@ -91,6 +91,7 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
 - `.gitignore` már megvan (Node/pnpm/.env lefedve).
 
 **Manuális teszt (A1):**
+
 - `pnpm install` hibátlan.
 - `pnpm nx --version` és `pnpm nx graph` fut (üres graph).
 
@@ -105,6 +106,7 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
 - Path-aliasok a `tsconfig.base.json`-ben (`@plantbase/core`, `@plantbase/db`).
 
 **Manuális teszt (A2):**
+
 - `pnpm nx run cli:build` sikeres.
 - `pnpm nx graph` mutatja a három projektet.
 - (Placeholder tesztek zöldek: `pnpm nx run-many -t test`.)
@@ -123,6 +125,7 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
   vagy migráció utáni egyszeri script (a seed/script assetek részeként, ha adott).
 
 **Manuális teszt (A3):**
+
 - `docker compose up -d`, `docker compose ps` → egészséges.
 - Kapcsolódás a read-write role-lal (pl. `psql "$DATABASE_URL" -c '\conninfo'`).
 - A read-only role-lal `SELECT 1` megy; `CREATE TABLE ...` **elutasítva** (jog hiánya).
@@ -145,6 +148,7 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
   kapja meg a valódi seed scriptet).
 
 **Manuális teszt (A4):**
+
 - `pnpm nx run db:migrate` lefut, a `products` tábla létrejön.
 - `psql "$DATABASE_URL" -c '\d products'` a séma szerinti oszlopokat mutatja.
 - `pnpm nx run db:generate` után a kliens típusai importálhatók.
@@ -159,6 +163,7 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
 - A megadott **tesztek/scriptek** a helyükre kerülnek (core/db/cli szerint), a Vitest bekötve.
 
 **Manuális teszt (A5):**
+
 - `pnpm nx run db:seed` → ~30 növény betöltve; `SELECT count(*) FROM products;` egyezik.
 - `pnpm nx run-many -t test` → a kapott tesztek zöldek.
 
@@ -171,6 +176,7 @@ Cél: a mérföldkő végén a projekt **fut és manuálisan tesztelhető** — 
 - `plantbase` indítható `pnpm nx run cli:serve`-vel; `--help` a parancsokat mutatja.
 
 **Manuális teszt (A6):**
+
 - `pnpm nx run cli:serve -- --help` → látszik az `ask` parancs és az interaktív mód.
 - Az interaktív mód elindul és `exit`-re kilép (tartalom nélkül).
 
@@ -193,6 +199,7 @@ Cél: a CLI-n keresztül interaktálok, és a program **visszaírja, amit beírt
 nincs adatbázis. Ez bizonyítja, hogy a be/kimeneti csővezeték (parancs + interaktív readline) áll.
 
 **Mit építünk:**
+
 - `apps/cli`: az `ask "<szöveg>"` parancs kiírja a szöveget (`echo`), és az interaktív mód
   minden sorra visszaírja azt, amíg `exit`.
 - A tiszta echo-logika kis, **tesztelhető** függvényben (pl. `packages/core` `formatEcho`,
@@ -200,6 +207,7 @@ nincs adatbázis. Ez bizonyítja, hogy a be/kimeneti csővezeték (parancs + int
 - Input-validáció a határon (Zod: nem üres szöveg), beszédes hiba.
 
 **Manuális teszt (1. fázis):**
+
 - `pnpm nx run cli:serve -- ask "szia"` → kiírja: `szia` (vagy a definiált echo-formátum).
 - Interaktív mód: több sor beírása → mindegyik visszajön; `exit` kilép.
 - `pnpm nx test` → az echo unit teszt zöld.
@@ -216,6 +224,7 @@ ezért adatra vonatkozó kérdésnél **őszintén** megmondja, hogy nem fér a 
 > tool-use ággal.
 
 **Mit építünk (`packages/core`):**
+
 - `askAgent(question)`: Anthropic SDK kliens (`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`),
   **system prompt a `system-prompt.md` alapján** (XML-szerű tagek: `<role>`, `<task>`, `<schema>`,
   `<rules>`, `<behavior>`), egyszeri (single-turn) hívás — **még nincs `runSql` tool megadva**.
@@ -227,6 +236,7 @@ ezért adatra vonatkozó kérdésnél **őszintén** megmondja, hogy nem fér a 
 - A CLI `ask`/interaktív mód mostantól `askAgent`-et hív az echo helyett.
 
 **Manuális teszt (2. fázis):**
+
 - `pnpm nx run cli:serve -- ask "szia, ki vagy?"` → értelmes bemutatkozó válasz.
 - `... ask "hány pozsgás van raktáron?"` → az agent **bevallja**, hogy nincs adatbázis-hozzáférése,
   nem talál ki adatot.
@@ -242,6 +252,7 @@ Cél: bekötjük a **`runSql` toolt**. Az agent a kérdésből **SQL-t ír**, le
 > **Doksi előbb:** a `pg` Pool és a Prisma raw/kliens határok Context7-tel ellenőrizve.
 
 **Mit építünk (`packages/core`):**
+
 - `runSql(query)` tool: **`pg` `Pool`** a `DATABASE_URL_READONLY`-n. **SELECT-guard**
   (kód + Zod): csak `SELECT`/`WITH ... SELECT`, egyetlen utasítás, tiltott kulcsszavak
   (INSERT/UPDATE/DELETE/DDL) elutasítva — fail-fast, beszédes hiba. Paraméterezés/limit a
@@ -256,6 +267,7 @@ Cél: bekötjük a **`runSql` toolt**. Az agent a kérdésből **SQL-t ír**, le
 - Naplózás kiegészül: **generált SQL + eredmény** is a JSONL-be (`FR4`).
 
 **Manuális teszt (3. fázis):**
+
 - `... ask "mutass 3 olcsó, pet-safe szobanövényt, ami raktáron van"` → helyes SQL fut,
   valós sorok, tömör magyar válasz (ár/akció, raktár, méret kiemelve).
 - `... ask "mennyibe kerül a legdrágább kaktusz?"` → helyes aggregált válasz.
@@ -333,10 +345,12 @@ Conventional Commit-ok.
 ### C1 — `extractCategories` pure logika (TDD)
 
 **Files:**
+
 - Create: `packages/core/src/lib/list-categories.spec.ts`
 - Create: `packages/core/src/lib/list-categories.ts`
 
 **Interfaces:**
+
 - Produces: `CATEGORIES_SQL: string`, `extractCategories(rows: unknown[]): string[]`,
   `listCategories(): Promise<string[]>` (utóbbi implementációja a C2-ben zárul, de a fájl itt jön létre).
 
@@ -348,17 +362,35 @@ import { extractCategories } from './list-categories';
 
 describe('extractCategories', () => {
   it('kinyeri és megőrzi a kategórianeveket a sorokból', () => {
-    const rows = [{ category: 'kaktusz' }, { category: 'pozsgás' }, { category: 'szobanövény' }];
-    expect(extractCategories(rows)).toEqual(['kaktusz', 'pozsgás', 'szobanövény']);
+    const rows = [
+      { category: 'kaktusz' },
+      { category: 'pozsgás' },
+      { category: 'szobanövény' },
+    ];
+    expect(extractCategories(rows)).toEqual([
+      'kaktusz',
+      'pozsgás',
+      'szobanövény',
+    ]);
   });
 
   it('defenzíven dedupál', () => {
-    const rows = [{ category: 'kaktusz' }, { category: 'kaktusz' }, { category: 'fűszer' }];
+    const rows = [
+      { category: 'kaktusz' },
+      { category: 'kaktusz' },
+      { category: 'fűszer' },
+    ];
     expect(extractCategories(rows)).toEqual(['kaktusz', 'fűszer']);
   });
 
   it('kiszűri a nem-string / hiányzó category mezőt', () => {
-    const rows = [{ category: 'kaktusz' }, { category: null }, {}, { category: 42 }, { category: '' }];
+    const rows = [
+      { category: 'kaktusz' },
+      { category: null },
+      {},
+      { category: 42 },
+      { category: '' },
+    ];
     expect(extractCategories(rows)).toEqual(['kaktusz']);
   });
 
@@ -369,8 +401,8 @@ describe('extractCategories', () => {
 ```
 
 - [ ] **2. lépés — Futtasd, bukjon.**
-  Run: `nvm use 22 && pnpm nx test core -- list-categories`
-  Expected: FAIL (`extractCategories is not a function` / nincs `./list-categories` modul).
+      Run: `nvm use 22 && pnpm nx test core -- list-categories`
+      Expected: FAIL (`extractCategories is not a function` / nincs `./list-categories` modul).
 
 - [ ] **3. lépés — Minimál implementáció.** `packages/core/src/lib/list-categories.ts`:
 
@@ -378,7 +410,8 @@ describe('extractCategories', () => {
 import { runSql } from './run-sql.js';
 
 // A distinct kategóriák lekérdezése (rendezett). A runSql SELECT-guardja + a read-only role védi.
-export const CATEGORIES_SQL = 'SELECT DISTINCT category FROM products ORDER BY category';
+export const CATEGORIES_SQL =
+  'SELECT DISTINCT category FROM products ORDER BY category';
 
 // A DB-ből jövő sorok megbízhatatlanok (unknown[]): a category string mezőt szűrjük ki,
 // a nem-string / üres értéket eldobjuk, és defenzíven dedupálunk. Sosem dob (fail-soft).
@@ -403,8 +436,8 @@ export async function listCategories(): Promise<string[]> {
 ```
 
 - [ ] **4. lépés — Futtasd, legyen zöld.**
-  Run: `nvm use 22 && pnpm nx test core -- list-categories`
-  Expected: PASS (mind a 4 teszt).
+      Run: `nvm use 22 && pnpm nx test core -- list-categories`
+      Expected: PASS (mind a 4 teszt).
 
 - [ ] **5. lépés — Commit.**
 
@@ -418,9 +451,11 @@ git commit -m "feat(core): add listCategories with extractCategories guard"
 ### C2 — `listCategories` bekötése az agent-loopba
 
 **Files:**
+
 - Modify: `packages/core/src/lib/ask-agent.ts`
 
 **Interfaces:**
+
 - Consumes: `listCategories` a `./list-categories.js`-ből; `CATEGORIES_SQL` a naplózáshoz.
 
 - [ ] **1. lépés — Import kiegészítése.** A `run-sql.js` import mellé, `ask-agent.ts` tetején:
@@ -446,41 +481,41 @@ const LIST_CATEGORIES_TOOL: Anthropic.Tool = {
 ```
 
 - [ ] **3. lépés — A tool regisztrálása.** A loopon belüli `messages.create({ ... })` hívásban a
-  `tools` mezőt bővítsd:
+      `tools` mezőt bővítsd:
 
 ```ts
       tools: [RUN_SQL_TOOL, LIST_CATEGORIES_TOOL],
 ```
 
 - [ ] **4. lépés — Dispatch-ág a loopban.** A `for (const block of response.content)` cikluson belül,
-  a meglévő `runSql` `if` **után** told be a `listCategories` ágat:
+      a meglévő `runSql` `if` **után** told be a `listCategories` ágat:
 
 ```ts
-      if (block.type === 'tool_use' && block.name === 'listCategories') {
-        try {
-          const categories = await listCategories();
-          executedSql.push(CATEGORIES_SQL);
-          sqlResults.push(categories);
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: block.id,
-            content: JSON.stringify(categories),
-          });
-        } catch (error) {
-          toolResults.push({
-            type: 'tool_result',
-            tool_use_id: block.id,
-            content: `Hiba: ${error instanceof Error ? error.message : String(error)}`,
-            is_error: true,
-          });
-        }
-      }
+if (block.type === 'tool_use' && block.name === 'listCategories') {
+  try {
+    const categories = await listCategories();
+    executedSql.push(CATEGORIES_SQL);
+    sqlResults.push(categories);
+    toolResults.push({
+      type: 'tool_result',
+      tool_use_id: block.id,
+      content: JSON.stringify(categories),
+    });
+  } catch (error) {
+    toolResults.push({
+      type: 'tool_result',
+      tool_use_id: block.id,
+      content: `Hiba: ${error instanceof Error ? error.message : String(error)}`,
+      is_error: true,
+    });
+  }
+}
 ```
 
 - [ ] **5. lépés — Regressziós ellenőrzés.** A meglévő `ask-agent.spec.ts` (extractText, buildPrompt)
-  maradjon zöld:
-  Run: `nvm use 22 && pnpm nx test core`
-  Expected: PASS (minden core teszt, köztük a C1 és az ask-agent unitok).
+      maradjon zöld:
+      Run: `nvm use 22 && pnpm nx test core`
+      Expected: PASS (minden core teszt, köztük a C1 és az ask-agent unitok).
 
 - [ ] **6. lépés — Commit.**
 
@@ -494,6 +529,7 @@ git commit -m "feat(core): wire listCategories into the agent tool loop"
 ### C3 — System prompt: a tool ismertetése a modellnek
 
 **Files:**
+
 - Modify: `packages/core/src/lib/system-prompt.ts`
 
 - [ ] **1. lépés — `<tools>` szekció bővítése.** A `<tools>` blokkban a `runSql` sor alá:
@@ -503,9 +539,9 @@ git commit -m "feat(core): wire listCategories into the agent tool loop"
 ```
 
 - [ ] **2. lépés — Teszt zöld marad.** A `buildPrompt` a `SYSTEM_PROMPT`-ra referál (nem a tartalmára),
-  így nem törik:
-  Run: `nvm use 22 && pnpm nx test core`
-  Expected: PASS.
+      így nem törik:
+      Run: `nvm use 22 && pnpm nx test core`
+      Expected: PASS.
 
 - [ ] **3. lépés — Commit.**
 
@@ -519,21 +555,24 @@ git commit -m "feat(core): document listCategories tool in system prompt"
 ### C4 — Manuális teszt (élő agent) + zárás
 
 - [ ] **1. lépés — Kategória-kérdés a tool-lal.**
-  Run: `nvm use 22 && pnpm nx run cli:serve -- ask "milyen kategóriák vannak?"`
-  Expected: az agent a `listCategories` toolt hívja, és a distinct kategóriákat magyarul felsorolja.
-  A `logs/<timestamp>.jsonl`-ben megjelenik a `CATEGORIES_SQL` és a kategórialista.
+      Run: `nvm use 22 && pnpm nx run cli:serve -- ask "milyen kategóriák vannak?"`
+      Expected: az agent a `listCategories` toolt hívja, és a distinct kategóriákat magyarul felsorolja.
+      A `logs/<timestamp>.jsonl`-ben megjelenik a `CATEGORIES_SQL` és a kategórialista.
 
 - [ ] **2. lépés — Regresszió: a runSql-út változatlan.**
-  Run: `nvm use 22 && pnpm nx run cli:serve -- ask "hány pozsgás van raktáron?"`
-  Expected: az agent továbbra is `runSql`-t használ, valós számmal válaszol.
+      Run: `nvm use 22 && pnpm nx run cli:serve -- ask "hány pozsgás van raktáron?"`
+      Expected: az agent továbbra is `runSql`-t használ, valós számmal válaszol.
 
 - [ ] **3. lépés — Teljes teszt-suite.**
-  Run: `nvm use 22 && pnpm nx run-many -t test`
-  Expected: minden zöld.
+      Run: `nvm use 22 && pnpm nx run-many -t test`
+      Expected: minden zöld.
 
 - [ ] **4. lépés — PR.** A `dev-workflow.md` szerint feature branchről PR a main felé
-  (`feat: add listCategories tool`).
+      (`feat: add listCategories tool`).
 
 > **C) kész:** a felhasználó rákérdez a kategóriákra → az agent a dedikált `listCategories` toollal
 > válaszol, a runSql-út érintetlen, a naplózás a tool-hívást is tükrözi.
+
+```
+
 ```

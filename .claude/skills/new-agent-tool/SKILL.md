@@ -34,8 +34,8 @@ Mielőtt kódot írsz, legyen egyértelmű (kérdezz vissza, ha hiányzik):
 
 - **Név** (`camelCase`, ige-szerű, pl. `findCheapest`, `plantDetails`).
 - **Input**: van-e paramétere? Ha nincs (mint `listCategories`), `inputSchema:
-  z.object({})`. Ha van, minden mező `zod` sémában (pl. `z.object({ mező:
-  z.string().describe('...') })`) — ez `zod` séma, nem JSON Schema.
+z.object({})`. Ha van, minden mező `zod` sémában (pl. `z.object({ mező:
+z.string().describe('...') })`) — ez `zod` séma, nem JSON Schema.
 - **Mit ad vissza** és milyen alakban: az `execute` a végleges értéket (pl. a
   `rows`-t) adja vissza — a modellnek küldött szerializálást az AI SDK végzi,
   nem kell kézzel `JSON.stringify`-olni.

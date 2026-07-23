@@ -8,13 +8,6 @@
 
 **Tech Stack:** TypeScript (ESM, NodeNext), AI SDK v5 (`ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`), `pg` + pgvector, Prisma (séma/migráció), Jina rerank (fetch), vitest, nx + pnpm.
 
-> **Megjegyzés (post-implementáció):** a rerank-provider **Cohere → Jina** cserélve lett
-> (`jina-reranker-v2-base-multilingual`), mert a Cohere enterprise-only, a Jina viszont ingyenes,
-> azonnali self-serve kulccsal jár. A `Providers.rerank` interfész változatlan; a lenti Task 4 / Task 12
-> kódrészletek és env-kulcsok, ahol még `Cohere`/`COHERE_API_KEY`/`api.cohere.com` szerepel, a
-> `jina-rerank.ts` / `JINA_API_KEY` / `https://api.jina.ai/v1/rerank` megfelelővel értendők (lásd a
-> friss `.env.example`-t és a specet).
-
 ## Global Constraints
 
 - **Node 22 LTS**: minden pnpm/nx/vitest hívás előtt `nvm use 22` (a harness shell alapból node 20). `.nvmrc` = 22.
@@ -36,7 +29,7 @@
 - `src/lib/markdown.ts` — `parseDoc` (frontmatter + törzs).
 - `src/lib/chunker.ts` — `stripBoilerplate`, `extractRelated`, `resolveRelated`, `chunkDoc` (**a tesztelt egység**).
 - `src/lib/providers.ts` — `Providers` interfész + `FakeProviders` (determinisztikus).
-- `src/lib/openai-embeddings.ts`, `src/lib/cohere-rerank.ts`, `src/lib/anthropic-gen.ts` — éles provider-implementációk.
+- `src/lib/openai-embeddings.ts`, `src/lib/jina-rerank.ts`, `src/lib/anthropic-gen.ts` — éles provider-implementációk.
 - `src/lib/store.ts` — `Store` interfész + `PgStore` (pgvector) + `InMemoryStore` (teszt).
 - `src/lib/ingest.ts` — `ingestDocs` (fájl → chunk → embed → upsert, content-hash skip).
 - `src/lib/retrieve.ts` — `retrieve` (raw + full: HyDE → embed → similarity → rerank).
@@ -196,9 +189,9 @@ model KnowledgeChunk {
 ```
 # --- RAG providerek ---
 OPENAI_API_KEY=sk-...
-COHERE_API_KEY=...
+JINA_API_KEY=jina_...
 OPENAI_EMBED_MODEL=text-embedding-3-small
-COHERE_RERANK_MODEL=rerank-v3.5
+JINA_RERANK_MODEL=jina-reranker-v2-base-multilingual
 ANTHROPIC_HYDE_MODEL=claude-haiku-4-5
 ANTHROPIC_ANSWER_MODEL=claude-sonnet-4-6
 RAG_MIN_RERANK_SCORE=0.30
@@ -260,7 +253,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 **Interfaces:**
 
-- Produces: `interface RagConfig { openaiApiKey; cohereApiKey; anthropicApiKey; embedModel; rerankModel; hydeModel; answerModel; minRerankScore: number; topN: number; topK: number }` és `loadRagConfig(env = process.env): RagConfig`.
+- Produces: `interface RagConfig { openaiApiKey; jinaApiKey; anthropicApiKey; embedModel; rerankModel; hydeModel; answerModel; minRerankScore: number; topN: number; topK: number }` és `loadRagConfig(env = process.env): RagConfig`.
 
 - [ ] **Step 1: Csomag-scaffold a `packages/core` mintájára**
 
@@ -280,7 +273,7 @@ import { loadRagConfig } from './config.js';
 
 const base = {
   OPENAI_API_KEY: 'o',
-  COHERE_API_KEY: 'c',
+  JINA_API_KEY: 'j',
   ANTHROPIC_API_KEY: 'a',
 };
 
@@ -322,7 +315,7 @@ Expected: FAIL („loadRagConfig is not a function").
 ```ts
 export interface RagConfig {
   openaiApiKey: string;
-  cohereApiKey: string;
+  jinaApiKey: string;
   anthropicApiKey: string;
   embedModel: string;
   rerankModel: string;
@@ -353,10 +346,10 @@ export function loadRagConfig(
 ): RagConfig {
   return {
     openaiApiKey: req(env, 'OPENAI_API_KEY'),
-    cohereApiKey: req(env, 'COHERE_API_KEY'),
+    jinaApiKey: req(env, 'JINA_API_KEY'),
     anthropicApiKey: req(env, 'ANTHROPIC_API_KEY'),
     embedModel: env.OPENAI_EMBED_MODEL || 'text-embedding-3-small',
-    rerankModel: env.COHERE_RERANK_MODEL || 'rerank-v3.5',
+    rerankModel: env.JINA_RERANK_MODEL || 'jina-reranker-v2-base-multilingual',
     hydeModel: env.ANTHROPIC_HYDE_MODEL || 'claude-haiku-4-5',
     answerModel: env.ANTHROPIC_ANSWER_MODEL || 'claude-sonnet-4-6',
     minRerankScore: num(env, 'RAG_MIN_RERANK_SCORE', 0.3),
@@ -705,7 +698,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 **Files:**
 
 - Create: `packages/rag/src/lib/providers.ts`, `providers.spec.ts`
-- Create: `packages/rag/src/lib/openai-embeddings.ts`, `cohere-rerank.ts`, `anthropic-gen.ts`
+- Create: `packages/rag/src/lib/openai-embeddings.ts`, `jina-rerank.ts`, `anthropic-gen.ts`
 
 **Interfaces:**
 
@@ -713,7 +706,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
   - `interface RerankHit { index: number; score: number }`
   - `interface Providers { embed(texts: string[]): Promise<number[][]>; hyde(query: string): Promise<string>; rerank(query: string, docs: string[], topN: number): Promise<RerankHit[]>; answer(system: string, prompt: string): Promise<string> }`
   - `class FakeProviders implements Providers` — determinisztikus (hash-embedding, kulcsszó-átfedéses fake rerank, echo answer/hyde).
-  - `createProviders(cfg: RagConfig): Providers` — éles (OpenAI + Cohere + Anthropic).
+  - `createProviders(cfg: RagConfig): Providers` — éles (OpenAI + Jina + Anthropic).
 
 - [ ] **Step 1: Failing test (`providers.spec.ts`) — a FakeProviders szerződése**
 
@@ -750,7 +743,7 @@ describe('FakeProviders', () => {
 ```ts
 import type { RagConfig } from './config.js';
 import { embedFromOpenAI } from './openai-embeddings.js';
-import { rerankFromCohere } from './cohere-rerank.js';
+import { rerankFromJina } from './jina-rerank.js';
 import { hydeFromAnthropic, answerFromAnthropic } from './anthropic-gen.js';
 
 export interface RerankHit {
@@ -807,7 +800,7 @@ export function createProviders(cfg: RagConfig): Providers {
   return {
     embed: (texts) => embedFromOpenAI(cfg, texts),
     hyde: (query) => hydeFromAnthropic(cfg, query),
-    rerank: (query, docs, topN) => rerankFromCohere(cfg, query, docs, topN),
+    rerank: (query, docs, topN) => rerankFromJina(cfg, query, docs, topN),
     answer: (system, prompt) => answerFromAnthropic(cfg, system, prompt),
   };
 }
@@ -835,23 +828,23 @@ export async function embedFromOpenAI(
 }
 ```
 
-`cohere-rerank.ts`:
+`jina-rerank.ts`:
 
 ```ts
 import type { RagConfig } from './config.js';
 import type { RerankHit } from './providers.js';
 
-export async function rerankFromCohere(
+export async function rerankFromJina(
   cfg: RagConfig,
   query: string,
   docs: string[],
   topN: number,
 ): Promise<RerankHit[]> {
   if (docs.length === 0) return [];
-  const res = await fetch('https://api.cohere.com/v2/rerank', {
+  const res = await fetch('https://api.jina.ai/v1/rerank', {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${cfg.cohereApiKey}`,
+      authorization: `Bearer ${cfg.jinaApiKey}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
@@ -859,10 +852,11 @@ export async function rerankFromCohere(
       query,
       documents: docs,
       top_n: Math.min(topN, docs.length),
+      return_documents: false,
     }),
   });
   if (!res.ok)
-    throw new Error(`Cohere rerank hiba: ${res.status} ${await res.text()}`);
+    throw new Error(`Jina rerank hiba: ${res.status} ${await res.text()}`);
   const json = (await res.json()) as {
     results: { index: number; relevance_score: number }[];
   };
@@ -916,8 +910,8 @@ export async function answerFromAnthropic(
 
 ```bash
 nvm use 22 && npx nx test rag -- providers
-git add packages/rag/src/lib/providers.ts packages/rag/src/lib/providers.spec.ts packages/rag/src/lib/openai-embeddings.ts packages/rag/src/lib/cohere-rerank.ts packages/rag/src/lib/anthropic-gen.ts
-git commit -m "feat(rag): Providers interfész (OpenAI embed / Cohere rerank / Anthropic HyDE+válasz) + FakeProviders
+git add packages/rag/src/lib/providers.ts packages/rag/src/lib/providers.spec.ts packages/rag/src/lib/openai-embeddings.ts packages/rag/src/lib/jina-rerank.ts packages/rag/src/lib/anthropic-gen.ts
+git commit -m "feat(rag): Providers interfész (OpenAI embed / Jina rerank / Anthropic HyDE+válasz) + FakeProviders
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -1413,7 +1407,7 @@ export async function retrieve(
 ```bash
 nvm use 22 && npx nx test rag -- retrieve
 git add packages/rag/src/lib/retrieve.ts packages/rag/src/lib/retrieve.spec.ts
-git commit -m "feat(rag): retrieve raw vs full (HyDE→embed→similarity→Cohere rerank)
+git commit -m "feat(rag): retrieve raw vs full (HyDE→embed→similarity→Jina rerank)
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
@@ -1924,7 +1918,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 **Nem kód** — a felhasználó a saját kulcsaival futtatja; a plan itt a lépéseket rögzíti.
 
-- [ ] **Step 1: Kulcsok** — `.env`-be `OPENAI_API_KEY`, `COHERE_API_KEY` (az `ANTHROPIC_API_KEY` már megvan).
+- [ ] **Step 1: Kulcsok** — `.env`-be `OPENAI_API_KEY`, `JINA_API_KEY` (az `ANTHROPIC_API_KEY` már megvan).
 - [ ] **Step 2: DB fel + migráció** — `docker compose up -d db && nvm use 22 && npx prisma migrate deploy --schema packages/db/prisma/schema.prisma`.
 - [ ] **Step 3: Indexelés** — `nvm use 22 && pnpm cli rag:index` → `IngestResult { indexed: ~202 }`.
 - [ ] **Step 4: Golden-set** — `pnpm cli rag:golden` → `docs/RAG/GOLDEN-SET.md`. Ellenőrizd: a #8 (Vénusz légycsapó) `grounded=NINCS`; legalább egy kérdésnél a full sorrend eltér a raw-tól (rerank átrendezés) — a report Megjegyzésekben indokold, miért jobb. Ha egyik sem rendez át, dokumentáld, miért.
@@ -1937,9 +1931,9 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 - **Embedding + pgvector** → Task 1 (tábla) + Task 4 (OpenAI embed) + Task 5 (PgStore). ✓
 - **HyDE** → Task 4 (`hydeFromAnthropic`) + Task 7 (`mode:'full'`). ✓
-- **Rerank** → Task 4 (`rerankFromCohere`) + Task 7. ✓
+- **Rerank** → Task 4 (`rerankFromJina`) + Task 7. ✓
 - **Grounding (forrás + nincs-találat)** → Task 8 (`answerFromKnowledge`, `NO_ANSWER`) + Task 9 (system prompt). ✓
-- **Multi-provider szereposztás** → Task 4 (OpenAI/Cohere/Anthropic) + spec 4. tábla. ✓
+- **Multi-provider szereposztás** → Task 4 (OpenAI/Jina/Anthropic) + spec 4. tábla. ✓
 - **Chunking + cross-ref + tesztek** → Task 3 (`chunkDoc`, `extractRelated/resolveRelated`, boilerplate-strip, 7 teszt). ✓
 - **Golden set (8 Q, unanswerable, rerank-demó, raw vs full)** → Task 10 + Task 12/Step 4. ✓
 - **ARCHITEKTURA.md** → Task 11. ✓

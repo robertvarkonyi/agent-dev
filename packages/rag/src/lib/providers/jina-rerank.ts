@@ -2,8 +2,8 @@ import type { RagConfig } from '../config.js';
 import type { RerankHit } from './providers.js';
 import type { UsageTracker } from './usage.js';
 
-// Jina rerank (cross-encoder). A válasz `results[].index`/`relevance_score` alakja megegyezik a
-// Cohere v2-ével, így a Providers.rerank szerződése változatlan. Többnyelvű modell (magyar query is).
+// Jina rerank (cross-encoder). A válasz `results[].index`/`relevance_score` alakja adja a
+// Providers.rerank szerződését. Többnyelvű modell (magyar query is).
 export async function rerankFromJina(
   cfg: RagConfig,
   query: string,
