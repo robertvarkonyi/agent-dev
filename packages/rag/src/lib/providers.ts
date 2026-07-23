@@ -1,4 +1,5 @@
 import type { RagConfig } from './config.js';
+import type { UsageTracker } from './usage.js';
 import { embedFromOpenAI } from './openai-embeddings.js';
 import { rerankFromJina } from './jina-rerank.js';
 import { hydeFromAnthropic, answerFromAnthropic } from './anthropic-gen.js';
@@ -53,11 +54,18 @@ export class FakeProviders implements Providers {
   }
 }
 
-export function createProviders(cfg: RagConfig): Providers {
+// A `tracker` opcionális: ha átadod, minden éles provider-hívás bejegyzi a token-fogyasztását
+// (a rag:index / rag:golden a végén ezt írja ki providerenként). Tracker nélkül a viselkedés változatlan.
+export function createProviders(
+  cfg: RagConfig,
+  tracker?: UsageTracker,
+): Providers {
   return {
-    embed: (texts) => embedFromOpenAI(cfg, texts),
-    hyde: (query) => hydeFromAnthropic(cfg, query),
-    rerank: (query, docs, topN) => rerankFromJina(cfg, query, docs, topN),
-    answer: (system, prompt) => answerFromAnthropic(cfg, system, prompt),
+    embed: (texts) => embedFromOpenAI(cfg, texts, tracker),
+    hyde: (query) => hydeFromAnthropic(cfg, query, tracker),
+    rerank: (query, docs, topN) =>
+      rerankFromJina(cfg, query, docs, topN, tracker),
+    answer: (system, prompt) =>
+      answerFromAnthropic(cfg, system, prompt, tracker),
   };
 }

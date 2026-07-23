@@ -1,15 +1,18 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { embedMany } from 'ai';
 import type { RagConfig } from './config.js';
+import type { UsageTracker } from './usage.js';
 
 export async function embedFromOpenAI(
   cfg: RagConfig,
   texts: string[],
+  tracker?: UsageTracker,
 ): Promise<number[][]> {
   const openai = createOpenAI({ apiKey: cfg.openaiApiKey });
-  const { embeddings } = await embedMany({
+  const { embeddings, usage } = await embedMany({
     model: openai.embedding(cfg.embedModel),
     values: texts,
   });
+  tracker?.add('openai', cfg.embedModel, usage?.tokens ?? 0);
   return embeddings;
 }

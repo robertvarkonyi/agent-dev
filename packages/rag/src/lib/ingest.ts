@@ -13,11 +13,29 @@ export interface IngestResult {
   deleted: number;
 }
 
+// Folyamat-esemény a hívónak (a CLI ebből ír progress-sorokat). UI-független: a RAG-csomag nem
+// ismer console-t, csak a callbacket hívja.
+export type IngestProgress =
+  | { type: 'deleted'; docId: string }
+  | {
+      type: 'doc';
+      index: number;
+      total: number;
+      docId: string;
+      action: 'indexed' | 'skipped';
+      chunks: number;
+    };
+
 export async function ingestDocs(
   files: { docId: string; raw: string }[],
-  deps: { providers: Providers; store: Store; embedModel: string },
+  deps: {
+    providers: Providers;
+    store: Store;
+    embedModel: string;
+    onProgress?: (event: IngestProgress) => void;
+  },
 ): Promise<IngestResult> {
-  const { providers, store, embedModel } = deps;
+  const { providers, store, embedModel, onProgress } = deps;
   const existing = await store.docHashes();
   const titleToDocId = new Map<string, string>();
   const parsed = files.map((f) => {
@@ -34,12 +52,24 @@ export async function ingestDocs(
     if (!present.has(docId)) {
       await store.deleteByDocId(docId);
       deleted++;
+      onProgress?.({ type: 'deleted', docId });
     }
 
+  const total = parsed.length;
+  let index = 0;
   for (const { doc } of parsed) {
+    index++;
     const hash = hashBody(doc.body);
     if (existing.get(doc.docId) === hash) {
       skipped++;
+      onProgress?.({
+        type: 'doc',
+        index,
+        total,
+        docId: doc.docId,
+        action: 'skipped',
+        chunks: 0,
+      });
       continue;
     }
     // A "Learn More" cross-refeket feloldjuk és eltároljuk (related_docs oszlop), de v1-ben
@@ -49,6 +79,14 @@ export async function ingestDocs(
     const chunks = chunkDoc(doc);
     if (chunks.length === 0) {
       skipped++;
+      onProgress?.({
+        type: 'doc',
+        index,
+        total,
+        docId: doc.docId,
+        action: 'skipped',
+        chunks: 0,
+      });
       continue;
     }
     const embeddings = await providers.embed(chunks.map((c) => c.content));
@@ -61,6 +99,14 @@ export async function ingestDocs(
     }));
     await store.upsertDoc(doc.docId, stored);
     indexed++;
+    onProgress?.({
+      type: 'doc',
+      index,
+      total,
+      docId: doc.docId,
+      action: 'indexed',
+      chunks: chunks.length,
+    });
   }
   return { indexed, skipped, deleted };
 }

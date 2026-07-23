@@ -23,6 +23,9 @@ import {
   ingestDocs,
   runGolden,
   renderGoldenMarkdown,
+  UsageTracker,
+  type IngestProgress,
+  type ProviderUsage,
 } from '@plantbase/rag';
 
 function formatPrompt(prompt: Prompt): string {
@@ -114,6 +117,22 @@ function runInteractive(showPrompt: boolean): void {
 const KNOWLEDGE_DIR = 'docs/knowledge';
 const GOLDEN_SET_PATH = 'docs/RAG/GOLDEN-SET.md';
 
+// A provider-token-riport kiírása (rag:index / rag:golden végén). Indexeléskor jellemzően csak
+// az OpenAI embedding szerepel (a HyDE/rerank/answer query-idejű); golden-nél mindhárom provider.
+function printUsage(usage: ProviderUsage[], total: number): void {
+  if (usage.length === 0) {
+    console.log('Token-fogyasztás: nincs (nem történt provider-hívás).');
+    return;
+  }
+  console.log('Token-fogyasztás providerenként:');
+  for (const u of usage) {
+    console.log(
+      `  ${u.provider} (${u.model}): ${u.tokens.toLocaleString('hu-HU')} token, ${u.calls} hívás`,
+    );
+  }
+  console.log(`  Összesen: ${total.toLocaleString('hu-HU')} token`);
+}
+
 // rag:index — a docs/knowledge/*.md fájlok (újra)indexelése a tudásbázisba.
 // Ez az EGYETLEN író útvonal (ingestion), ezért RW pool (DATABASE_URL) kell —
 // nem az agent útvonala, hanem operátori CLI-parancs.
@@ -126,6 +145,7 @@ async function ragIndex(): Promise<void> {
   }
   const cfg = loadRagConfig();
   const pool = new Pool({ connectionString });
+  const usage = new UsageTracker();
   try {
     const files = readdirSync(KNOWLEDGE_DIR)
       .filter((name) => name.endsWith('.md'))
@@ -133,15 +153,31 @@ async function ragIndex(): Promise<void> {
         docId: name.slice(0, -3),
         raw: readFileSync(join(KNOWLEDGE_DIR, name), 'utf8'),
       }));
+    console.log(
+      `Indexelés indul: ${files.length} dokumentum a(z) ${KNOWLEDGE_DIR}/ mappából (modell: ${cfg.embedModel})…`,
+    );
+    const onProgress = (e: IngestProgress): void => {
+      if (e.type === 'deleted') {
+        console.log(`  törölve (már nincs fájl): ${e.docId}`);
+        return;
+      }
+      const status =
+        e.action === 'indexed'
+          ? `indexelve (${e.chunks} chunk)`
+          : 'változatlan (kihagyva)';
+      console.log(`  [${e.index}/${e.total}] ${e.docId} — ${status}`);
+    };
     const deps = {
-      providers: createProviders(cfg),
+      providers: createProviders(cfg, usage),
       store: new PgStore(pool),
       embedModel: cfg.embedModel,
+      onProgress,
     };
     const result = await ingestDocs(files, deps);
     console.log(
-      `Indexelve: ${result.indexed}, kihagyva (nincs változás): ${result.skipped}, törölve (már nincs fájl): ${result.deleted}`,
+      `\nKész. Indexelve: ${result.indexed}, kihagyva (nincs változás): ${result.skipped}, törölve (már nincs fájl): ${result.deleted}`,
     );
+    printUsage(usage.snapshot(), usage.totalTokens());
   } finally {
     await pool.end();
   }
@@ -158,8 +194,13 @@ async function ragGolden(): Promise<void> {
   }
   const cfg = loadRagConfig();
   const pool = new Pool({ connectionString });
+  const usage = new UsageTracker();
   try {
-    const deps = { providers: createProviders(cfg), store: new PgStore(pool) };
+    const deps = {
+      providers: createProviders(cfg, usage),
+      store: new PgStore(pool),
+    };
+    console.log(`Golden-set futtatása (raw vs full)…`);
     const report = await runGolden(deps, {
       topN: cfg.topN,
       topK: cfg.topK,
@@ -169,6 +210,7 @@ async function ragGolden(): Promise<void> {
     console.log(
       `Kész: ${GOLDEN_SET_PATH} frissítve (${report.rows.length} kérdés).`,
     );
+    printUsage(usage.snapshot(), usage.totalTokens());
   } finally {
     await pool.end();
   }

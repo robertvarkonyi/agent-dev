@@ -1,4 +1,5 @@
 export * from './lib/config.js';
+export * from './lib/usage.js';
 export * from './lib/markdown.js';
 export * from './lib/chunker.js';
 export * from './lib/providers.js';
