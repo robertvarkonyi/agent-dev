@@ -23,8 +23,10 @@ import {
   ingestDocs,
   runGolden,
   renderGoldenMarkdown,
+  GOLDEN_QUESTIONS,
   UsageTracker,
   type IngestProgress,
+  type GoldenProgress,
   type ProviderUsage,
 } from '@plantbase/rag';
 
@@ -224,12 +226,32 @@ async function ragGolden(): Promise<void> {
   const usage = new UsageTracker();
 
   try {
+    console.log(
+      `Golden-set futtatása (raw vs full): ${GOLDEN_QUESTIONS.length} kérdés…`,
+    );
+
+    const onProgress = (e: GoldenProgress): void => {
+      if (e.type === 'question-start') {
+        console.log(`\n[${e.index}/${e.total}] ${e.q}`);
+
+        return;
+      }
+
+      if (e.step === 'grounded') {
+        console.log(`  grounded: ${e.grounded ? 'igen' : 'NINCS'}`);
+
+        return;
+      }
+
+      console.log(`  ${e.step} kész (${e.results} találat)`);
+    };
+
     const deps = {
       providers: createProviders(cfg, usage),
       store: new PgStore(pool),
+      onProgress,
     };
 
-    console.log(`Golden-set futtatása (raw vs full)…`);
     const report = await runGolden(deps, {
       topN: cfg.topN,
       topK: cfg.topK,
@@ -237,8 +259,22 @@ async function ragGolden(): Promise<void> {
     });
 
     writeFileSync(GOLDEN_SET_PATH, renderGoldenMarkdown(report));
+
+    // Összegzés: hány megválaszolható kérdésnél rendezte át a rerank a #1 találatot, és hány
+    // kérdés viselkedett grounding-szempontból az elvárt módon (a negatív próbát is beleértve).
+    const reordered = report.rows.filter(
+      (r) => r.expectAnswerable && r.full[0]?.docId !== r.raw[0]?.docId,
+    ).length;
+
+    const groundingOk = report.rows.filter(
+      (r) => r.grounded === r.expectAnswerable,
+    ).length;
+
     console.log(
       `Kész: ${GOLDEN_SET_PATH} frissítve (${report.rows.length} kérdés).`,
+    );
+    console.log(
+      `  Rerank átrendezte a #1-et: ${reordered} kérdésnél. Grounding az elvárt módon: ${groundingOk}/${report.rows.length}.`,
     );
     printUsage(usage.snapshot(), usage.totalTokens());
   } finally {
