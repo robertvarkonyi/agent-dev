@@ -25,7 +25,7 @@ export interface ProviderUsage {
 export class UsageTracker {
   private readonly byKey = new Map<string, ProviderUsage>();
 
-  add(provider: string, model: string, fn: string, tokens: number): void {
+  add(provider: string, model: string, fn: UsageFnName, tokens: number): void {
     const key = `${provider}:${fn}`;
     const cur = this.byKey.get(key) ?? {
       provider,

@@ -68,6 +68,23 @@ function modelId(model: LanguageModel): string {
     : ((model as { modelId?: string }).modelId ?? 'unknown');
 }
 
+// Az orchestrátor-modell (NL→SQL tool-use loop) tokenjeit `agent` funkcióként ugyanabba a
+// trackerbe adja, mint a RAG-provider tokeneket, majd az összevont breakdown-t adja vissza.
+function foldAgentUsage(
+  tracker: UsageTracker,
+  model: LanguageModel,
+  usage: AgentResult['usage'],
+): TokenBreakdown {
+  tracker.add(
+    'anthropic',
+    modelId(model),
+    UsageFn.agent,
+    usage.input_tokens + usage.output_tokens,
+  );
+
+  return toTokenBreakdown(tracker.snapshot());
+}
+
 // Egyfordulós agent: a modell a buildTools tooljaival dolgozik, az SDK futtatja a
 // többlépéses loopot (stopWhen), majd természetes nyelvű választ ad. A `model` teszthez
 // injektálható; alapból az env-vezérelt resolveModel().
@@ -88,17 +105,7 @@ export async function askAgent(
   });
 
   const usage = mapUsage(result.totalUsage);
-
-  // Az orchestrátor-modell (NL→SQL tool-use loop) tokenjei `agent` funkcióként, ugyanabba a
-  // trackerbe, mint a RAG-provider tokenek — így egy közös breakdown áll össze.
-  tracker.add(
-    'anthropic',
-    modelId(model),
-    UsageFn.agent,
-    usage.input_tokens + usage.output_tokens,
-  );
-
-  const tokenBreakdown = toTokenBreakdown(tracker.snapshot());
+  const tokenBreakdown = foldAgentUsage(tracker, model, usage);
 
   logInteraction({
     timestamp: new Date().toISOString(),
@@ -152,15 +159,7 @@ export function streamChat(
     ]);
 
     const usage = mapUsage(rawUsage);
-
-    tracker.add(
-      'anthropic',
-      modelId(model),
-      UsageFn.agent,
-      usage.input_tokens + usage.output_tokens,
-    );
-
-    const tokenBreakdown = toTokenBreakdown(tracker.snapshot());
+    const tokenBreakdown = foldAgentUsage(tracker, model, usage);
     const fullMessages: ChatMessage[] = [...messages, ...response.messages];
 
     logInteraction({

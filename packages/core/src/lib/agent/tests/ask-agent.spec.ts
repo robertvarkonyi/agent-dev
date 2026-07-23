@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // A naplózást elkapjuk (az invariáns: minden interakció naplózódik).
 const logSpy = vi.fn();
@@ -66,6 +66,10 @@ vi.mock('@plantbase/rag', async (importOriginal) => {
 
 import { askAgent, buildPrompt, streamChat } from '../ask-agent.js';
 import { SYSTEM_PROMPT } from '../system-prompt.js';
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('buildPrompt', () => {
   it('a system promptot és a user üzenetet adja vissza', () => {
@@ -173,8 +177,10 @@ describe('askAgent', () => {
   });
 
   it('a RAG-tokenek és az agent-token ugyanabba a breakdownba olvadnak', async () => {
-    process.env.DATABASE_URL_READONLY =
-      'postgres://user:pass@localhost:5432/db';
+    vi.stubEnv(
+      'DATABASE_URL_READONLY',
+      'postgres://user:pass@localhost:5432/db',
+    );
 
     // A stubolt generateText lefuttatja a searchKnowledge toolt → a mockolt RAG a tracker
     // (rag-answer:200) sort rögzíti; az agent totalUsage (10+5) adja az agent sort.
@@ -255,6 +261,10 @@ describe('streamChat', () => {
       { role: 'user', content: 'szia' },
       { role: 'assistant', content: 'Helló' },
     ]);
+    expect(result.tokenBreakdown.rows).toEqual([
+      { provider: 'anthropic', fn: 'agent', tokens: 5 },
+    ]);
+    expect(result.tokenBreakdown.total).toBe(5);
     expect(logSpy).toHaveBeenCalledTimes(1);
   });
 });
