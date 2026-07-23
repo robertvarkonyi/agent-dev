@@ -71,6 +71,43 @@ chunk → embed → tárolás**, a **törlés/módosítás** úttal együtt:
 
 ![Plantbase RAG — inkrementális indexelés adatfolyama](docs/RAG/adatfolyam.svg)
 
+### Chunkolás — hogyan lesz egy cikkből kereshető darab
+
+Egy markdown-cikket nem egészben embeddelünk, hanem **értelmes, önmagukban is
+grounded darabokra** (chunk) vágjuk. A teljes logika a
+[chunker.ts](packages/rag/src/lib/chunking/chunker.ts)-ben él; egyszerűsítve öt lépés:
+
+1. **Boilerplate-szűrés.** Indexelés előtt kivágjuk a nem-tartalmi, ismétlődő
+   blokkokat: a `Perfect Pairings` és a `Words By The Sill` szekciókat (a fájl
+   végéig), a `Learn More` navigációt és a `Shop …!` upsell-sorokat. Így az
+   embedding a valódi gondozási tudásra fókuszál, nem a webshop-sablonra
+   (`stripBoilerplate`).
+
+2. **Szekciókra bontás + kontextus-prefix.** A törzset a markdown-headingek
+   (`##` > `###` > `####`) mentén szekciókra bontjuk, és minden chunk elé
+   odabiggyesztjük a **cím + heading-útvonalat** (pl. `How To Care for a
+Monstera — Water`). Így egy darab magában is „tudja", miről és minek a
+   részeként szól — és **egy chunk soha nem lép át szekcióhatárt**.
+
+3. **Méret.** Egy chunk törzse legfeljebb **~1600 karakter (~400 token)**. A
+   bekezdéseket bekezdés-határon pakoljuk egy chunkba, amíg beleférnek; egy
+   túl hosszú bekezdést előbb **mondathatáron** (`. ! ?`), végső esetben kemény
+   karakter-ablakokban szeletelünk szét.
+
+4. **Overlap (átfedés).** Két egymást követő chunk nem élesen vágódik el: az
+   előző chunk **utolsó bekezdését** átvisszük a következő elejére (**1
+   bekezdés átfedés**), hogy a határon átívelő gondolat egyik darabból se
+   hiányozzon a kereséskor. Az átfedést csak akkor visszük tovább, ha a chunk
+   **vele együtt is** a méretkorlát alatt marad.
+
+5. **Referenciák (cross-ref).** A cikkek `Learn More` listájából kinyerjük a
+   hivatkozott cikkcímeket (`extractRelated`), majd a korpusz frontmatter-címeire
+   feloldjuk őket `doc_id`-kra (`resolveRelated`) — az ismeretlen hivatkozásokat
+   eldobva. Ez a `related_docs` oszlopba kerül; ma indexelési melléktermék, a
+   query-idejű testvér-chunk behúzás [tervben van](docs/RAG/ARCHITEKTURA.md).
+
+Részletek és edge case-ek: [docs/RAG/ARCHITEKTURA.md](docs/RAG/ARCHITEKTURA.md).
+
 ## Indítás
 
 1. **Node 22** (a repó `.nvmrc`-je):
