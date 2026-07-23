@@ -6,7 +6,17 @@
     "cli": "NODE_OPTIONS=--conditions=@plantbase/source tsx apps/cli/src/main.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,mts,cts,mjs,cjs}": [
+      "eslint --fix --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "private": true,
   "engines": {
@@ -22,6 +32,7 @@
     "@nx/node": "23.0.1",
     "@nx/vite": "23.0.1",
     "@nx/vitest": "23.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
     "@swc-node/register": "1.11.1",
     "@swc/core": "1.15.8",
     "@swc/helpers": "0.5.18",
@@ -31,6 +42,8 @@
     "esbuild": "^0.27.0",
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.1.1",
     "nx": "23.0.1",
     "prettier": "^3.8.1",
     "prisma": "^6.19.3",
