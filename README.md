@@ -108,6 +108,41 @@ Monstera — Water`). Így egy darab magában is „tudja", miről és minek a
 
 Részletek és edge case-ek: [docs/RAG/ARCHITEKTURA.md](docs/RAG/ARCHITEKTURA.md).
 
+### Golden set — RAG regressziós kiértékelés
+
+Nyolc rögzített kérdéssel (7 megválaszolható + 1 korpuszon kívüli, negatív
+próba) méri a **raw vs. full** retrievalt és a groundingot. Csak olvas,
+előfeltétele felindexelt tudásbázis; frissíti a
+[GOLDEN-SET.md](docs/RAG/GOLDEN-SET.md) riportot, majd kiírja a
+token-fogyasztást:
+
+```bash
+pnpm cli rag:golden
+```
+
+A pipeline lépései:
+
+- **HyDE** (hipotetikus válasz) → `anthropic claude-haiku-4-5` — olcsó, gyors
+  modell; a query helyett egy hihető választ ágyazunk be, így a keresés a
+  válasz szemantikájához illeszkedik, nem a kérdés szóválasztásához.
+- **Embedding** → `openai text-embedding-3-small` — a szöveget vektorrá
+  alakítja a pgvector similarity-kereséshez.
+- **Rerank** → `jina jina-reranker-v2-base-multilingual` — a top-N jelöltet
+  relevancia szerint újrarendezi (multilingual = magyarul is), pontosabban,
+  mint a nyers vektor-távolság.
+- **Válasz** → `anthropic claude-sonnet-4-6` — erősebb modell, ami a
+  chunkokból forrásmegjelölt magyar választ ír, vagy (grounding) elutasít.
+
+### Token fogyasztás megjelenítése
+```
+Token-fogyasztás providerenként:
+  openai (text-embedding-3-small): 2868 token, 24 hívás
+  anthropic (claude-haiku-4-5): 3821 token, 16 hívás
+  jina (jina-reranker-v2-base-multilingual): 57 470 token, 16 hívás
+  anthropic (claude-sonnet-4-6): 12 860 token, 7 hívás
+  Összesen: 77 019 token
+```
+
 ## Indítás
 
 1. **Node 22** (a repó `.nvmrc`-je):
