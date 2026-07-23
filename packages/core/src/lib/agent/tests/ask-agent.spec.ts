@@ -28,6 +28,42 @@ vi.mock('ai', async (importOriginal) => {
   };
 });
 
+// A RAG-útvonalat mockoljuk: a createProviders a NEKI ÁTADOTT trackerbe rögzít (így bizonyítjuk,
+// hogy az askAgert-beli tracker fűződik le a searchKnowledge-ig), az answerFromKnowledge grounded
+// választ ad. A loadRagConfig/PgStore hálózat-mentes stub.
+vi.mock('@plantbase/rag', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@plantbase/rag')>();
+
+  return {
+    ...actual,
+    loadRagConfig: () => ({ topN: 5, topK: 3, minRerankScore: 0 }),
+    PgStore: class {},
+    createProviders: (
+      _cfg: unknown,
+      tracker?: import('@plantbase/rag').UsageTracker,
+    ) => ({
+      embed: async () => [[]],
+      hyde: async (q: string) => q,
+      rerank: async () => [],
+      answer: async () => {
+        tracker?.add('anthropic', 'fake-answer-model', 'rag-answer', 200);
+
+        return 'Grounded válasz.';
+      },
+    }),
+    answerFromKnowledge: async (
+      query: string,
+      deps: {
+        providers: { answer: (s: string, p: string) => Promise<string> };
+      },
+    ) => {
+      const answer = await deps.providers.answer('sys', query);
+
+      return { answer, grounded: true, sources: [] };
+    },
+  };
+});
+
 import { askAgent, buildPrompt, streamChat } from '../ask-agent.js';
 import { SYSTEM_PROMPT } from '../system-prompt.js';
 
@@ -118,6 +154,60 @@ describe('askAgent', () => {
       role: 'user',
       content: 'mutass egy terméket',
     });
+  });
+
+  it('RAG nélküli kérdésnél a tokenBreakdown csak az agent sort tartalmazza', async () => {
+    generateTextMock.mockResolvedValue({
+      text: 'Kész.',
+      usage: { inputTokens: 99, outputTokens: 99 },
+      totalUsage: { inputTokens: 10, outputTokens: 5 },
+      response: { messages: [{ role: 'assistant', content: 'Kész.' }] },
+    });
+
+    const res = await askAgent('szia', {} as never);
+
+    expect(res.tokenBreakdown.rows).toEqual([
+      { provider: 'anthropic', fn: 'agent', tokens: 15 },
+    ]);
+    expect(res.tokenBreakdown.total).toBe(15);
+  });
+
+  it('a RAG-tokenek és az agent-token ugyanabba a breakdownba olvadnak', async () => {
+    process.env.DATABASE_URL_READONLY =
+      'postgres://user:pass@localhost:5432/db';
+
+    // A stubolt generateText lefuttatja a searchKnowledge toolt → a mockolt RAG a tracker
+    // (rag-answer:200) sort rögzíti; az agent totalUsage (10+5) adja az agent sort.
+    generateTextMock.mockImplementation(
+      async (opts: {
+        tools: ReturnType<
+          typeof import('../../tools/agent-tools.js').buildTools
+        >;
+      }) => {
+        await opts.tools.searchKnowledge.execute!(
+          { query: 'hogyan öntözzem?' },
+          {
+            toolCallId: 't',
+            messages: [],
+          } as never,
+        );
+
+        return {
+          text: 'Kész.',
+          usage: { inputTokens: 1, outputTokens: 1 },
+          totalUsage: { inputTokens: 10, outputTokens: 5 },
+          response: { messages: [{ role: 'assistant', content: 'Kész.' }] },
+        };
+      },
+    );
+
+    const res = await askAgent('hogyan öntözzem a pothost?', {} as never);
+
+    expect(res.tokenBreakdown.rows).toEqual([
+      { provider: 'anthropic', fn: 'rag-answer', tokens: 200 },
+      { provider: 'anthropic', fn: 'agent', tokens: 15 },
+    ]);
+    expect(res.tokenBreakdown.total).toBe(215);
   });
 });
 

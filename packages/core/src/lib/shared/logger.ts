@@ -9,6 +9,7 @@ export interface InteractionLog {
   messages: unknown;
   answer: string;
   usage: unknown;
+  tokenBreakdown?: unknown;
   sql?: string;
   result?: unknown;
 }

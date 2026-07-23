@@ -10,6 +10,12 @@ import { SYSTEM_PROMPT } from './system-prompt.js';
 import { logInteraction } from '../shared/logger.js';
 import { resolveModel } from './provider.js';
 import { buildTools, type ToolCall } from '../tools/agent-tools.js';
+import {
+  UsageTracker,
+  UsageFn,
+  toTokenBreakdown,
+  type TokenBreakdown,
+} from '@plantbase/rag';
 
 // A többlépéses tool-use loop felső korlátja (most az SDK-é: stopWhen).
 const MAX_STEPS = 6;
@@ -25,6 +31,7 @@ export interface Prompt {
 export interface AgentResult {
   answer: string;
   usage: { input_tokens: number; output_tokens: number };
+  tokenBreakdown: TokenBreakdown;
 }
 
 // A CLI ezt tartja a chat-előzményben (nem importál 'ai'-t közvetlenül).
@@ -70,16 +77,29 @@ export async function askAgent(
 ): Promise<AgentResult> {
   const prompt = buildPrompt(input);
   const collector: ToolCall[] = [];
+  const tracker = new UsageTracker();
 
   const result = await generateText({
     model,
     system: prompt.system,
     messages: prompt.messages,
-    tools: buildTools(collector),
+    tools: buildTools(collector, tracker),
     stopWhen: stepCountIs(MAX_STEPS),
   });
 
   const usage = mapUsage(result.totalUsage);
+
+  // Az orchestrátor-modell (NL→SQL tool-use loop) tokenjei `agent` funkcióként, ugyanabba a
+  // trackerbe, mint a RAG-provider tokenek — így egy közös breakdown áll össze.
+  tracker.add(
+    'anthropic',
+    modelId(model),
+    UsageFn.agent,
+    usage.input_tokens + usage.output_tokens,
+  );
+
+  const tokenBreakdown = toTokenBreakdown(tracker.snapshot());
+
   logInteraction({
     timestamp: new Date().toISOString(),
     model: modelId(model),
@@ -87,11 +107,12 @@ export async function askAgent(
     messages: [...prompt.messages, ...result.response.messages],
     answer: result.text,
     usage,
+    tokenBreakdown,
     sql: collector.map((c) => c.sql).join('\n'),
     result: collector.map((c) => c.rows),
   });
 
-  return { answer: result.text, usage };
+  return { answer: result.text, usage, tokenBreakdown };
 }
 
 // A CLI felé stabil, SDK-mentes felület: token-stream + a befejezéskor feloldódó metaadat.
@@ -101,6 +122,7 @@ export interface ChatStream {
     answer: string;
     usage: AgentResult['usage'];
     messages: ChatMessage[];
+    tokenBreakdown: TokenBreakdown;
   }>;
 }
 
@@ -112,11 +134,13 @@ export function streamChat(
   model: LanguageModel = resolveModel(),
 ): ChatStream {
   const collector: ToolCall[] = [];
+  const tracker = new UsageTracker();
+
   const result = streamText({
     model,
     system: SYSTEM_PROMPT,
     messages,
-    tools: buildTools(collector),
+    tools: buildTools(collector, tracker),
     stopWhen: stepCountIs(MAX_STEPS),
   });
 
@@ -128,7 +152,17 @@ export function streamChat(
     ]);
 
     const usage = mapUsage(rawUsage);
+
+    tracker.add(
+      'anthropic',
+      modelId(model),
+      UsageFn.agent,
+      usage.input_tokens + usage.output_tokens,
+    );
+
+    const tokenBreakdown = toTokenBreakdown(tracker.snapshot());
     const fullMessages: ChatMessage[] = [...messages, ...response.messages];
+
     logInteraction({
       timestamp: new Date().toISOString(),
       model: modelId(model),
@@ -136,11 +170,12 @@ export function streamChat(
       messages: fullMessages,
       answer,
       usage,
+      tokenBreakdown,
       sql: collector.map((c) => c.sql).join('\n'),
       result: collector.map((c) => c.rows),
     });
 
-    return { answer, usage, messages: fullMessages };
+    return { answer, usage, messages: fullMessages, tokenBreakdown };
   })();
 
   return { textStream: result.textStream, done };

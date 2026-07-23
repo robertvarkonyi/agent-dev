@@ -6,6 +6,7 @@ import {
   createProviders,
   PgStore,
   answerFromKnowledge,
+  type UsageTracker,
 } from '@plantbase/rag';
 import { errorMessage } from '../shared/errors.js';
 import { runSql } from './run-sql.js';
@@ -30,36 +31,46 @@ function toolError(error: unknown): string {
 // olvas, a DATABASE_URL (RW/owner) itt SOSEM használható. Az ingestion (Task 10 CLI) az egyetlen író.
 let ragPool: Pool | undefined;
 
-// Éles AnswerFn: a RAG pipeline (config + providers + PgStore) minden híváskor a friss configgal
-// épül fel, csak a Pool singleton.
-const liveAnswer: AnswerFn = (query: string) => {
-  const cfg = loadRagConfig();
+// Éles AnswerFn-gyár: opcionálisan kap egy kérés-hatókörű UsageTracker-t, amit a RAG-providerekbe
+// fűz (createProviders 2. arg) — így a searchKnowledge alatti embed/HyDE/rerank/answer tokenek is
+// ugyanabba a trackerbe gyűlnek, mint az orchestrátoré. A config + PgStore minden híváskor friss,
+// csak a READ-ONLY Pool singleton.
+function makeLiveAnswer(tracker?: UsageTracker): AnswerFn {
+  return (query: string) => {
+    const cfg = loadRagConfig();
 
-  if (!ragPool) {
-    const connectionString = process.env.DATABASE_URL_READONLY;
+    if (!ragPool) {
+      const connectionString = process.env.DATABASE_URL_READONLY;
 
-    if (!connectionString) {
-      throw new Error(
-        'Hiányzik a DATABASE_URL_READONLY. Állítsd be a .env-ben.',
-      );
+      if (!connectionString) {
+        throw new Error(
+          'Hiányzik a DATABASE_URL_READONLY. Állítsd be a .env-ben.',
+        );
+      }
+
+      ragPool = new Pool({ connectionString });
     }
 
-    ragPool = new Pool({ connectionString });
-  }
+    const deps = {
+      providers: createProviders(cfg, tracker),
+      store: new PgStore(ragPool),
+    };
 
-  const deps = { providers: createProviders(cfg), store: new PgStore(ragPool) };
-
-  return answerFromKnowledge(query, deps, {
-    topN: cfg.topN,
-    topK: cfg.topK,
-    minRerankScore: cfg.minRerankScore,
-  });
-};
+    return answerFromKnowledge(query, deps, {
+      topN: cfg.topN,
+      topK: cfg.topK,
+      minRerankScore: cfg.minRerankScore,
+    });
+  };
+}
 
 // A tool-ok egyetlen helye (ez váltja az inline Anthropic.Tool konstansokat). Új tool = egy
 // bejegyzés ide. A `collector` futás-hatókörű: minden execute mellékhatásként belépteti a
 // naplózandó { sql, rows }-t, miközben a modellnek csak a rows megy vissza.
-export function buildTools(collector: ToolCall[]): ToolSet {
+export function buildTools(
+  collector: ToolCall[],
+  tracker?: UsageTracker,
+): ToolSet {
   return {
     runSql: tool({
       description:
@@ -97,6 +108,6 @@ export function buildTools(collector: ToolCall[]): ToolSet {
       },
     }),
 
-    searchKnowledge: buildSearchKnowledge(liveAnswer),
+    searchKnowledge: buildSearchKnowledge(makeLiveAnswer(tracker)),
   };
 }
