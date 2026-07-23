@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1290 1430" width="1290" height="1430" font-family="'Segoe UI',system-ui,sans-serif">
+<defs><marker id="arrow-44515E" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#44515E"/></marker>
+<marker id="arrow-2E9E6B" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2E9E6B"/></marker>
+<marker id="arrow-9C4DCC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#9C4DCC"/></marker>
+<marker id="arrow-C0392B" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker>
+<marker id="arrow-78899A" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#78899A"/></marker>
+<marker id="arrow-B8A369" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#B8A369"/></marker></defs>
+<rect x="0" y="0" width="1290" height="1430" fill="#FFFFFF"/>
+<rect x="8" y="8" width="1274" height="1414" rx="16" fill="#FBFCFD" stroke="#E1E7ED" stroke-width="1.5"/>
+<text x="36" y="52" font-size="23" font-weight="800" fill="#1B2733">Plantbase RAG — inkrementális indexelés adatfolyama</text>
+<text x="36" y="80" font-size="13.5" fill="#5A6B7A">forrás → változásérzékelés → chunk → embed → tárolás, + törlés/módosítás útja   ·   docs/RAG/ARCHITEKTURA.md alapján</text>
+<text x="36" y="100" font-size="12" fill="#8A99A8">A dobozok a valódi kódra hivatkoznak: packages/rag/src/lib/{pipeline,storage,chunking,providers} · apps/cli/src/main.ts · packages/db/prisma</text>
+<rect x="435" y="122" width="22" height="15" rx="3" fill="#E4F5EC" stroke="#2E9E6B" stroke-width="1.6"/><text x="463" y="134" font-family="'Segoe UI',system-ui,sans-serif" font-size="11.5" fill="#33414E">MEGVALÓSÍTVA (kész kód)</text>
+<rect x="640.8" y="122" width="22" height="15" rx="3" fill="#FFF3E2" stroke="#E08A00" stroke-width="1.6" stroke-dasharray="5 4"/><text x="668.8" y="134" font-family="'Segoe UI',system-ui,sans-serif" font-size="11.5" fill="#33414E">TERV (még nincs megírva)</text>
+<rect x="853.1999999999999" y="122" width="22" height="15" rx="3" fill="#FCE6E6" stroke="#D14343" stroke-width="1.6"/><text x="881.1999999999999" y="134" font-family="'Segoe UI',system-ui,sans-serif" font-size="11.5" fill="#33414E">törlés / delete-út</text>
+<rect x="1026" y="122" width="22" height="15" rx="3" fill="#EDF1F5" stroke="#78899A" stroke-width="1.6"/><text x="1054" y="134" font-family="'Segoe UI',system-ui,sans-serif" font-size="11.5" fill="#33414E">lekérdezés (RO)</text>
+<!-- ingestDocs konténer -->
+<rect x="30" y="452" width="1230" height="748" rx="14" fill="#F4F8FB" stroke="#B9C7D4" stroke-width="1.6" stroke-dasharray="2 3"/>
+<text x="46" y="476" font-size="13" font-weight="700" fill="#3A4C5C">ingestDocs(files, deps)  —  packages/rag/src/lib/pipeline/ingest.ts</text>
+<path d="M645,256 L645,300" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+<rect x="621.1" y="261" width="47.8" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="645" y="273" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#44515E">fájlok</text>
+<path d="M400,216 L417.5,216 L417.5,348.25 L435,348.25" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+<rect x="374.7" y="265.125" width="85.6" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="417.5" y="277.125" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#44515E">indítja (RW)</text>
+<path d="M220,256 L220,288" fill="none" stroke="#44515E" stroke-width="2" stroke-dasharray="6 5"/>
+
+<path d="M220,351.5 L220,372" fill="none" stroke="#44515E" stroke-width="2" stroke-dasharray="6 5"/>
+
+<path d="M645,396.5 L645,486" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+<rect x="577" y="424.25" width="136" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="645" y="436.25" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#44515E">files[] → ingestDocs</text>
+<path d="M445,526 L428.5,526 L428.5,550.75 L412,550.75" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+
+<path d="M645,566 L645,604" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+
+<path d="M645,684 L645,716" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+
+<path d="M785,774 L842.5,774 L842.5,766 L900,766" fill="none" stroke="#2E9E6B" stroke-width="2" marker-end="url(#arrow-2E9E6B)"/>
+<rect x="793.4" y="753" width="98.2" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="842.5" y="765" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#2E9E6B">IGEN (egyezik)</text>
+<path d="M645,832 L645,872" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+<rect x="580.15" y="835" width="129.7" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="645" y="847" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#44515E">NEM — új / módosult</text>
+<path d="M865,928.5 L882.5,928.5 L882.5,924 L900,924" fill="none" stroke="#44515E" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-44515E)"/>
+<rect x="852.3" y="909.25" width="60.4" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="882.5" y="921.25" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#44515E">0 chunk?</text>
+<path d="M645,985 L645,1016" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+
+<path d="M645,1096 L645,1104" fill="none" stroke="#44515E" stroke-width="2" marker-end="url(#arrow-44515E)"/>
+
+<path d="M645,1200.5 L645,1225.25 L595,1225.25 L595,1250" fill="none" stroke="#9C4DCC" stroke-width="2" marker-end="url(#arrow-9C4DCC)"/>
+<rect x="552" y="1208.25" width="136" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="620" y="1220.25" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#9C4DCC">INSERT / DELETE (RW)</text>
+<path d="M226,615.5 L226,1298.25 L330,1298.25" fill="none" stroke="#C0392B" stroke-width="2" marker-end="url(#arrow-C0392B)"/>
+<rect x="186.35" y="1281.25" width="79.3" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="226" y="1293.25" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#C0392B">DELETE (RW)</text>
+<path d="M895,1092.25 L880,1092.25 L880,1152.25 L865,1152.25" fill="none" stroke="#B8A369" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-B8A369)"/>
+
+<path d="M860,1298.25 L895,1298.25 L895,1296.5 L930,1296.5" fill="none" stroke="#78899A" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-78899A)"/>
+<rect x="858.5" y="1280.375" width="73" height="17" rx="4" fill="#ffffff" opacity="0.92"/><text x="895" y="1292.375" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="600" fill="#78899A">olvas (RO)</text>
+<rect x="435" y="176" width="420" height="80" rx="12" fill="#E6F0FC" stroke="#2F6FBF" stroke-width="2"/>
+<text x="645" y="202" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#0B3D73">FORRÁS — knowledge korpusz</text>
+<text x="645" y="219" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#0B3D73">docs/knowledge/*.md</text>
+<text x="645" y="235.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#0B3D73">~200 markdown doksi (title/source/category + törzs)</text>
+<rect x="435" y="300" width="420" height="96.5" rx="12" fill="#E6F0FC" stroke="#2F6FBF" stroke-width="2"/>
+<text x="645" y="326" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#0B3D73">BEOLVASÁS — CLI belépési pont</text>
+<text x="645" y="343" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#0B3D73">apps/cli/src/main.ts → ragIndex()</text>
+<text x="645" y="359.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#0B3D73">readdirSync + readFileSync  →  { docId, raw }[]</text>
+<text x="645" y="376" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#0B3D73">docId = fájlnév − ".md"</text>
+<rect x="40" y="176" width="360" height="80" rx="12" fill="#E4F5EC" stroke="#2E9E6B" stroke-width="2"/>
+<text x="220" y="202" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#12492B">TRIGGER — ma az egyetlen [KÉSZ]</text>
+<text x="220" y="219" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">Manuális:  pnpm cli rag:index</text>
+<text x="220" y="235.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">RW kapcsolat:  DATABASE_URL</text>
+<rect x="40" y="288" width="360" height="63.5" rx="12" fill="#FFF3E2" stroke="#E08A00" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="220" y="314" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#7A4A00">[TERV] CI a docs/knowledge/**-re</text>
+<text x="220" y="331" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A4A00">merge → main, path-filter (RW titok csak merge-en)</text>
+<rect x="40" y="372" width="360" height="63.5" rx="12" fill="#FFF3E2" stroke="#E08A00" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="220" y="398" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#7A4A00">[TERV] Cron / fájl-watch</text>
+<text x="220" y="415" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A4A00">biztonsági háló, ha a CI-trigger kimarad</text>
+<rect x="445" y="486" width="400" height="80" rx="12" fill="#E4F5EC" stroke="#2E9E6B" stroke-width="2"/>
+<text x="645" y="512" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#12492B">DB-PILLANATKÉP (jelen állapot)</text>
+<text x="645" y="529" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">store.docHashes() → Map&lt;doc_id → content_hash&gt;</text>
+<text x="645" y="545.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">SELECT DISTINCT ON (doc_id) … FROM knowledge_chunks</text>
+<rect x="40" y="486" width="372" height="129.5" rx="12" fill="#FCE6E6" stroke="#D14343" stroke-width="2"/>
+<text x="226" y="512" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#7A1515">TÖRLÉS-RECONCILE — halmaz-diff</text>
+<text x="226" y="529" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A1515">present = beolvasott files docId-jei</text>
+<text x="226" y="545.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A1515">existing = docHashes() kulcsai (DB)</text>
+<text x="226" y="562" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A1515">existing − present ⇒ fájl törölve / átnevezve</text>
+<text x="226" y="578.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A1515">store.deleteByDocId(docId)</text>
+<text x="226" y="595" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A1515">DELETE FROM knowledge_chunks WHERE doc_id</text>
+<rect x="445" y="604" width="400" height="80" rx="12" fill="#E4F5EC" stroke="#2E9E6B" stroke-width="2"/>
+<text x="645" y="630" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#12492B">VÁLTOZÁSÉRZÉKELÉS — parse + hash</text>
+<text x="645" y="647" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">parseDoc(raw) → { title, source, category, body }</text>
+<text x="645" y="663.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">hashBody(body) = sha256(body)   (tartalom-hash)</text>
+<polygon points="645,716 785,774 645,832 505,774" fill="#FFF4D6" stroke="#D9A400" stroke-width="2"/>
+<text x="645" y="762" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13" font-weight="600" fill="#6B4E00"><tspan x="645" dy="0">tárolt hash</tspan><tspan x="645" dy="16">==</tspan><tspan x="645" dy="16">friss hash ?</tspan></text>
+<rect x="900" y="726" width="350" height="80" rx="12" fill="#E4F5EC" stroke="#2E9E6B" stroke-width="2"/>
+<text x="1075" y="752" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#12492B">VÁLTOZATLAN → SKIP</text>
+<text x="1075" y="769" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">nincs chunk · nincs embed · nincs DB-írás</text>
+<text x="1075" y="785.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">O(1) hash-lookup, 0 OpenAI-költség</text>
+<rect x="425" y="872" width="440" height="113" rx="12" fill="#E4F5EC" stroke="#2E9E6B" stroke-width="2"/>
+<text x="645" y="898" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#12492B">CHUNK</text>
+<text x="645" y="915" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">chunkDoc(doc) → Chunk[]</text>
+<text x="645" y="931.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">boilerplate-strip · heading-path prefix</text>
+<text x="645" y="948" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">≤ 1600 char (~400 token) · 1-bekezdés overlap</text>
+<text x="645" y="964.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#12492B">+ resolveRelated(extractRelated) → related_docs *</text>
+<rect x="900" y="884" width="350" height="80" rx="12" fill="#FFF3E2" stroke="#E08A00" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1075" y="910" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#7A4A00">chunks.length === 0 ?</text>
+<text x="1075" y="927" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A4A00">meglévő doksinál: orphan chunk BENNRAGAD</text>
+<text x="1075" y="943.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#7A4A00">[TERV-javítás] deleteByDocId(docId)</text>
+<rect x="425" y="1016" width="440" height="80" rx="12" fill="#ECEAFB" stroke="#6B5DD3" stroke-width="2"/>
+<text x="645" y="1042" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#2E2278">EMBED</text>
+<text x="645" y="1059" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#2E2278">providers.embed(chunkok tartalma)</text>
+<text x="645" y="1075.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#2E2278">OpenAI text-embedding-3-small → number[1536][]</text>
+<rect x="425" y="1104" width="440" height="96.5" rx="12" fill="#F3E6FB" stroke="#9C4DCC" stroke-width="2"/>
+<text x="645" y="1130" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#4A1863">TÁROLÁS — upsert (atomi csere)</text>
+<text x="645" y="1147" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#4A1863">store.upsertDoc(docId, chunks)</text>
+<text x="645" y="1163.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#4A1863">TRANZAKCIÓ: BEGIN → DELETE doc_id → INSERT → COMMIT</text>
+<text x="645" y="1180" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#4A1863">hiba → ROLLBACK (régi marad, idempotens újrafutás)</text>
+<rect x="895" y="1044" width="355" height="96.5" rx="12" fill="#FBF7EC" stroke="#B8A369" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="1072.5" y="1070" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#5A4A1E">MÓDOSULT DOKSI (hash eltér, docId ismert)</text>
+<text x="1072.5" y="1087" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#5A4A1E">→ ugyanaz az ág, mint az új doksinál</text>
+<text x="1072.5" y="1103.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#5A4A1E">upsertDoc = DELETE régi + INSERT új</text>
+<text x="1072.5" y="1120" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#5A4A1E">= ATOMI CSERE egy tranzakcióban</text>
+<rect x="330" y="1250" width="530" height="96.5" rx="12" fill="#F3E6FB" stroke="#9C4DCC" stroke-width="2"/>
+<text x="595" y="1276" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#4A1863">STORAGE — Postgres + pgvector</text>
+<text x="595" y="1293" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#4A1863">knowledge_chunks · embedding vector(1536) · HNSW (cosine)</text>
+<text x="595" y="1309.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#4A1863">content_hash · related_docs * · embed_model * · token_count</text>
+<text x="595" y="1326" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#4A1863">ÍRÁS: RW (DATABASE_URL) — csak az ingestion ír</text>
+<rect x="930" y="1240" width="345" height="113" rx="12" fill="#EDF1F5" stroke="#78899A" stroke-width="2"/>
+<text x="1102.5" y="1266" text-anchor="middle" font-family="'Segoe UI',system-ui,sans-serif" font-size="13.5" font-weight="700" fill="#2C3742">LEKÉRDEZÉS — agent (külön, RO útvonal)</text>
+<text x="1102.5" y="1283" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#2C3742">tool: searchKnowledge</text>
+<text x="1102.5" y="1299.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#2C3742">retrieve: HyDE → embed → similarity → rerank</text>
+<text x="1102.5" y="1316" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#2C3742">answer: grounded válasz + forráshivatkozás</text>
+<text x="1102.5" y="1332.5" text-anchor="middle" font-family="'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace" font-size="11" fill="#2C3742">OLVASÁS: RO (DATABASE_URL_READONLY)</text>
+<text x="36" y="1408" font-size="11" fill="#95A3B1">* related_docs és embed_model ma write-only (tárolva, query-időben nem olvasott) — testvér-doksi bővítés és modell-verziózás: [TERV]. A * jelű ágak a TERV-részek.</text>
+</svg>

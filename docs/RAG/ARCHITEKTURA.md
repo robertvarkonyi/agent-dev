@@ -12,6 +12,16 @@
 
 ## Áttekintés — adatfolyam
 
+![Plantbase RAG — inkrementális indexelés adatfolyama: forrás → változásérzékelés → chunk → embed → tárolás, a törlés/módosítás úttal](./adatfolyam.svg)
+
+> **Ábra (kötelező melléklet).** A teljes adatfolyam: **forrás → változásérzékelés → chunk →
+> embed → tárolás**, a **törlés-** és a **módosítás-úttal** együtt. A dobozok a valódi kódra
+> hivatkoznak (`packages/rag/src/lib/{pipeline,storage,chunking,providers}`, `apps/cli/src/main.ts`,
+> `packages/db/prisma`). Zölddel a **[MEGVALÓSÍTVA]**, szaggatott sárgával a **[TERV]** részek.
+> Forrásfájl (vektoros export): [`adatfolyam.svg`](./adatfolyam.svg).
+>
+> Az alábbi ASCII-vázlat ugyanezt adja plain-textben (a diff-review kedvéért):
+
 ```
 docs/knowledge/*.md
    │  (readdirSync + readFileSync, apps/cli/src/main.ts → ragIndex())

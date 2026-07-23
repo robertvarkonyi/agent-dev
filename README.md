@@ -49,6 +49,28 @@ Tech stack: TypeScript (strict), Nx, pnpm, Node 22 LTS, PostgreSQL + Prisma,
 Anthropic SDK + Zod, commander + node:readline, Vitest, ESLint + Prettier, tsx.
 Részletek és a `products` séma: [docs/stack.md](docs/stack.md).
 
+## Tudásbázis (RAG)
+
+A katalógus-lekérdezés mellett az agent egy **növénygondozási tudásbázisból** is tud
+grounded (forrásmegjelölt) választ adni, a `docs/knowledge/**` markdown-korpuszból (~200
+cikk). A `searchKnowledge` agent-tool egy **RAG-pipeline**-t hív: HyDE → OpenAI-embedding →
+pgvector similarity-keresés → Jina rerank → küszöbölt, forráshivatkozott válasz. Az indexelés
+**inkrementális**: tartalom-hash (sha256) alapú változásérzékeléssel a változatlan cikkek nem
+embeddelődnek újra (0 OpenAI-hívás), a törölt és a módosult cikkek pedig automatikusan
+reconcile-olódnak (utóbbi atomi `DELETE+INSERT` cserével egy tranzakcióban).
+
+- Belépési pontok: `pnpm cli rag:index` (indexelés, **RW**) · `pnpm cli rag:golden`
+  (regressziós kiértékelés golden kérdéskészleten, **RO**).
+- Külön csomag: `packages/rag` (`pipeline` / `storage` / `chunking` / `providers`).
+- Tárolás: Postgres + **pgvector** (`knowledge_chunks` tábla, HNSW cosine index); az agent az
+  eddigi **read-only** kapcsolaton olvassa (`DATABASE_URL_READONLY`), csak az `rag:index` ír.
+- Részletek (mag vs. terv, edge case-ek): [docs/RAG/ARCHITEKTURA.md](docs/RAG/ARCHITEKTURA.md).
+
+Az alábbi ábra a teljes indexelési adatfolyamot mutatja — **forrás → változásérzékelés →
+chunk → embed → tárolás**, a **törlés/módosítás** úttal együtt:
+
+![Plantbase RAG — inkrementális indexelés adatfolyama](docs/RAG/adatfolyam.svg)
+
 ## Indítás
 
 1. **Node 22** (a repó `.nvmrc`-je):
@@ -139,6 +161,7 @@ pontokkal bővült:
 - [docs/brs-plantbase.md](docs/brs-plantbase.md) — üzleti követelmény-leírás (BRS)
 - [docs/architektura.md](docs/architektura.md) — fájlstruktúra és kulcsdöntések
 - [docs/stack.md](docs/stack.md) — tech stack és a `products` séma
+- [docs/RAG/ARCHITEKTURA.md](docs/RAG/ARCHITEKTURA.md) — RAG tudásbázis: inkrementális indexelés (adatfolyam-ábrával)
 - [docs/konvenciok.md](docs/konvenciok.md) — kódolási konvenciók
 - [docs/dev-workflow.md](docs/dev-workflow.md) — git, hookok, dokumentációs folyamat
 - [docs/system-prompt.md](docs/system-prompt.md) — az agent system promptja
