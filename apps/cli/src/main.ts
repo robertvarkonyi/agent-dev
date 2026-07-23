@@ -25,10 +25,11 @@ import {
   renderGoldenMarkdown,
   GOLDEN_QUESTIONS,
   UsageTracker,
+  toTokenBreakdown,
   type IngestProgress,
   type GoldenProgress,
-  type ProviderUsage,
 } from '@plantbase/rag';
+import { formatTokenBreakdown } from './token-report.js';
 
 function formatPrompt(prompt: Prompt): string {
   return [
@@ -47,8 +48,9 @@ async function answer(input: string, showPrompt: boolean): Promise<void> {
       console.log(formatPrompt(buildPrompt(input)));
     }
 
-    const { answer: text } = await askAgent(input);
+    const { answer: text, tokenBreakdown } = await askAgent(input);
     console.log(text);
+    console.log(formatTokenBreakdown(tokenBreakdown));
   } catch (error) {
     console.error(
       `Hiba: ${error instanceof Error ? error.message : String(error)}`,
@@ -88,7 +90,8 @@ function runInteractive(showPrompt: boolean): void {
       }
 
       process.stdout.write('\n');
-      const { messages } = await done;
+      const { messages, tokenBreakdown } = await done;
+      console.log(formatTokenBreakdown(tokenBreakdown));
       history.splice(0, history.length, ...messages);
     } catch (error) {
       console.error(
@@ -129,26 +132,6 @@ function runInteractive(showPrompt: boolean): void {
 
 const KNOWLEDGE_DIR = 'docs/knowledge';
 const GOLDEN_SET_PATH = 'docs/RAG/GOLDEN-SET.md';
-
-// A provider-token-riport kiírása (rag:index / rag:golden végén). Indexeléskor jellemzően csak
-// az OpenAI embedding szerepel (a HyDE/rerank/answer query-idejű); golden-nél mindhárom provider.
-function printUsage(usage: ProviderUsage[], total: number): void {
-  if (usage.length === 0) {
-    console.log('Token-fogyasztás: nincs (nem történt provider-hívás).');
-
-    return;
-  }
-
-  console.log('Token-fogyasztás providerenként:');
-
-  for (const u of usage) {
-    console.log(
-      `  ${u.provider} (${u.model}): ${u.tokens.toLocaleString('hu-HU')} token, ${u.calls} hívás`,
-    );
-  }
-
-  console.log(`  Összesen: ${total.toLocaleString('hu-HU')} token`);
-}
 
 // rag:index — a docs/knowledge/*.md fájlok (újra)indexelése a tudásbázisba.
 // Ez az EGYETLEN író útvonal (ingestion), ezért RW pool (DATABASE_URL) kell —
@@ -204,7 +187,7 @@ async function ragIndex(): Promise<void> {
     console.log(
       `\nKész. Indexelve: ${result.indexed}, kihagyva (nincs változás): ${result.skipped}, törölve (már nincs fájl): ${result.deleted}`,
     );
-    printUsage(usage.snapshot(), usage.totalTokens());
+    console.log(formatTokenBreakdown(toTokenBreakdown(usage.snapshot())));
   } finally {
     await pool.end();
   }
@@ -276,7 +259,7 @@ async function ragGolden(): Promise<void> {
     console.log(
       `  Rerank átrendezte a #1-et: ${reordered} kérdésnél. Grounding az elvárt módon: ${groundingOk}/${report.rows.length}.`,
     );
-    printUsage(usage.snapshot(), usage.totalTokens());
+    console.log(formatTokenBreakdown(toTokenBreakdown(usage.snapshot())));
   } finally {
     await pool.end();
   }
