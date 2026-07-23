@@ -1,6 +1,6 @@
 export interface RagConfig {
   openaiApiKey: string;
-  cohereApiKey: string;
+  jinaApiKey: string;
   anthropicApiKey: string;
   embedModel: string;
   rerankModel: string;
@@ -31,10 +31,10 @@ export function loadRagConfig(
 ): RagConfig {
   return {
     openaiApiKey: req(env, 'OPENAI_API_KEY'),
-    cohereApiKey: req(env, 'COHERE_API_KEY'),
+    jinaApiKey: req(env, 'JINA_API_KEY'),
     anthropicApiKey: req(env, 'ANTHROPIC_API_KEY'),
     embedModel: env.OPENAI_EMBED_MODEL || 'text-embedding-3-small',
-    rerankModel: env.COHERE_RERANK_MODEL || 'rerank-v3.5',
+    rerankModel: env.JINA_RERANK_MODEL || 'jina-reranker-v2-base-multilingual',
     hydeModel: env.ANTHROPIC_HYDE_MODEL || 'claude-haiku-4-5',
     answerModel: env.ANTHROPIC_ANSWER_MODEL || 'claude-sonnet-4-6',
     minRerankScore: num(env, 'RAG_MIN_RERANK_SCORE', 0.3),

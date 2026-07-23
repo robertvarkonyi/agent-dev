@@ -3,7 +3,7 @@ import { loadRagConfig } from './config.js';
 
 const base = {
   OPENAI_API_KEY: 'o',
-  COHERE_API_KEY: 'c',
+  JINA_API_KEY: 'j',
   ANTHROPIC_API_KEY: 'a',
 };
 
@@ -16,6 +16,7 @@ describe('loadRagConfig', () => {
   it('alapértelmezett modelleket és küszöböket ad', () => {
     const c = loadRagConfig(base);
     expect(c.embedModel).toBe('text-embedding-3-small');
+    expect(c.rerankModel).toBe('jina-reranker-v2-base-multilingual');
     expect(c.minRerankScore).toBe(0.3);
     expect(c.topN).toBe(20);
     expect(c.topK).toBe(5);

@@ -6,7 +6,14 @@
 
 **Architecture:** Új `@plantbase/rag` csomag három réteggel (ingestion / retrieval / grounding), injektálható provider-interfésszel (unit-tesztek kulcs nélkül futnak). Tárolás pgvectorban (`knowledge_chunks`), az agent RO-n olvas, az ingestion RW-n ír. Az agent a meglévő AI SDK tool-készletbe kap egy `searchKnowledge` toolt.
 
-**Tech Stack:** TypeScript (ESM, NodeNext), AI SDK v5 (`ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`), `pg` + pgvector, Prisma (séma/migráció), Cohere rerank (fetch), vitest, nx + pnpm.
+**Tech Stack:** TypeScript (ESM, NodeNext), AI SDK v5 (`ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`), `pg` + pgvector, Prisma (séma/migráció), Jina rerank (fetch), vitest, nx + pnpm.
+
+> **Megjegyzés (post-implementáció):** a rerank-provider **Cohere → Jina** cserélve lett
+> (`jina-reranker-v2-base-multilingual`), mert a Cohere enterprise-only, a Jina viszont ingyenes,
+> azonnali self-serve kulccsal jár. A `Providers.rerank` interfész változatlan; a lenti Task 4 / Task 12
+> kódrészletek és env-kulcsok, ahol még `Cohere`/`COHERE_API_KEY`/`api.cohere.com` szerepel, a
+> `jina-rerank.ts` / `JINA_API_KEY` / `https://api.jina.ai/v1/rerank` megfelelővel értendők (lásd a
+> friss `.env.example`-t és a specet).
 
 ## Global Constraints
 
@@ -23,6 +30,7 @@
 ## File Structure
 
 **Új csomag — `packages/rag/`:**
+
 - `package.json`, `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`, `vitest.config.mts`, `src/index.ts` — nx/pnpm csomag-scaffold (a `packages/core` mintájára).
 - `src/lib/config.ts` — env → `RagConfig` (kulcsok, modell-id-k, küszöbök), fail-fast.
 - `src/lib/markdown.ts` — `parseDoc` (frontmatter + törzs).
@@ -36,6 +44,7 @@
 - `src/lib/golden.ts` — golden-set kérdések + runner (raw vs full összevetés).
 
 **Meglévő csomagok — módosítás:**
+
 - `docker-compose.yml` — pgvector image.
 - `packages/db/prisma/schema.prisma` + új migráció — `knowledge_chunks` tábla.
 - `packages/core/src/lib/tools/search-knowledge.ts` (+spec) — új agent-tool.
@@ -63,11 +72,13 @@ git checkout feat/ai-sdk-chat-agent
 git pull --ff-only
 git merge origin/main   # KONFLIKTUS várható — a következő lépés oldja fel
 ```
+
 Expected: konfliktus a `packages/core/src/lib/ask-agent.ts`, `apps/cli/src/main.ts`, `ask-agent.spec.ts`, `logger.spec.ts`, `.claude/skills/new-agent-tool/SKILL.md`, `pnpm-lock.yaml` fájlokban + rename/add ütközések a `tools/` mappánál.
 
 - [ ] **Step 2: Konfliktus-feloldás a spec 2. táblája szerint**
 
 Cél-struktúra `packages/core/src/lib/` alatt:
+
 ```
 ask-agent.ts        # AI SDK (branch) — streamChat + askAgent
 provider.ts         # branch — resolveModel (multi-provider)
@@ -80,7 +91,9 @@ tools/
   list-categories.ts
   + *.spec.ts
 ```
+
 Feloldási szabályok:
+
 - `ask-agent.ts`, `main.ts`, `provider.ts`: **branch** verziót tartsd (`git checkout --theirs` ahol tiszta), AI SDK.
 - `errors.ts` + `errors.spec.ts`: main-ből megtartva (jön a merge-ben addként).
 - Mozgatás: `git mv packages/core/src/lib/run-sql.ts packages/core/src/lib/tools/run-sql.ts` és `list-categories.ts` ugyanígy (a branch flat helyükről a `tools/` alá); a spec-eket is.
@@ -98,6 +111,7 @@ pnpm install
 npx nx run-many -t typecheck 2>/dev/null || npx nx run-many -t build
 npx nx run-many -t test
 ```
+
 Expected: minden zöld. Ha valamelyik spec az AI SDK/tools átrendezés miatt piros → javítsd az importokat/elérési utakat, amíg zöld.
 
 - [ ] **Step 4: Merge-commit + push, majd a GitHub-oldali merge megerősítése**
@@ -110,7 +124,9 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 git push origin feat/ai-sdk-chat-agent
 gh pr view 13 --json mergeable,mergeStateStatus
 ```
+
 Expected: `MERGEABLE`. **Állj meg**, mutasd meg a felhasználónak, és csak jóváhagyás után:
+
 ```bash
 gh pr merge 13 --merge
 ```
@@ -126,6 +142,7 @@ git commit -m "docs: RAG spec + implementációs terv
 
 Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ```
+
 (A `docs/knowledge/` untracked marad; külön committoljuk a Task 6-ban vagy itt, ha akarod.)
 
 ---
@@ -133,12 +150,14 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 1: pgvector infrastruktúra (docker image + Prisma migráció)
 
 **Files:**
+
 - Modify: `docker-compose.yml` (image)
 - Modify: `packages/db/prisma/schema.prisma` (KnowledgeChunk model)
 - Create: `packages/db/prisma/migrations/<ts>_knowledge_chunks/migration.sql`
 - Modify: `.env.example`
 
 **Interfaces:**
+
 - Produces: `knowledge_chunks` tábla (lásd séma lent), elérhető a RO és RW kapcsolaton is.
 
 - [ ] **Step 1: pgvector image**
@@ -148,6 +167,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - [ ] **Step 2: Prisma model (Unsupported vector) + env**
 
 `schema.prisma` végére:
+
 ```prisma
 model KnowledgeChunk {
   id           BigInt   @id @default(autoincrement())
@@ -170,7 +190,9 @@ model KnowledgeChunk {
   @@map("knowledge_chunks")
 }
 ```
+
 `.env.example` bővítés:
+
 ```
 # --- RAG providerek ---
 OPENAI_API_KEY=sk-...
@@ -190,11 +212,15 @@ RAG_TOP_K=5
 nvm use 22
 npx prisma migrate dev --name knowledge_chunks --create-only --schema packages/db/prisma/schema.prisma
 ```
+
 A generált `migration.sql` **elejére**:
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
+
 és **végére** (a Prisma nem tud HNSW-t + a vector típust `bytea`-ként látná — cseréld a generált `embedding` oszlopdefiníciót `vector(1536)`-ra, ha kell), majd:
+
 ```sql
 CREATE INDEX IF NOT EXISTS knowledge_chunks_embedding_hnsw
   ON knowledge_chunks USING hnsw (embedding vector_cosine_ops);
@@ -211,6 +237,7 @@ npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
 # extension + tábla + RO jog ellenőrzése:
 docker exec -i plantbase-db psql -U plantbase -d plantbase -c "\dx vector" -c "\d knowledge_chunks"
 ```
+
 Expected: `vector` extension listázva; a tábla oszlopai láthatók, `embedding` típusa `vector`.
 
 - [ ] **Step 5: Commit**
@@ -227,15 +254,18 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 2: `@plantbase/rag` csomag-scaffold + config
 
 **Files:**
+
 - Create: `packages/rag/package.json`, `tsconfig*.json`, `vitest.config.mts`, `src/index.ts`
 - Create: `packages/rag/src/lib/config.ts`, `packages/rag/src/lib/config.spec.ts`
 
 **Interfaces:**
+
 - Produces: `interface RagConfig { openaiApiKey; cohereApiKey; anthropicApiKey; embedModel; rerankModel; hydeModel; answerModel; minRerankScore: number; topN: number; topK: number }` és `loadRagConfig(env = process.env): RagConfig`.
 
 - [ ] **Step 1: Csomag-scaffold a `packages/core` mintájára**
 
 `packages/rag/package.json` (a `packages/core/package.json` alapján), `type: module`, deps: `ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `pg`, `zod`; devDeps `@types/pg`. `tsconfig.lib.json`/`tsconfig.spec.json`/`vitest.config.mts` a core megfelelőit másolja. `src/index.ts` re-exportál a `./lib/*`-ból.
+
 ```bash
 nvm use 22 && pnpm install
 ```
@@ -243,16 +273,22 @@ nvm use 22 && pnpm install
 - [ ] **Step 2: Failing test — config fail-fast + defaultok**
 
 `config.spec.ts`:
+
 ```ts
 import { describe, it, expect } from 'vitest';
 import { loadRagConfig } from './config.js';
 
-const base = { OPENAI_API_KEY: 'o', COHERE_API_KEY: 'c', ANTHROPIC_API_KEY: 'a' };
+const base = {
+  OPENAI_API_KEY: 'o',
+  COHERE_API_KEY: 'c',
+  ANTHROPIC_API_KEY: 'a',
+};
 
 describe('loadRagConfig', () => {
   it('hiányzó OPENAI_API_KEY esetén beszédes magyar hibát dob', () => {
-    expect(() => loadRagConfig({ ...base, OPENAI_API_KEY: '' }))
-      .toThrow(/OPENAI_API_KEY/);
+    expect(() => loadRagConfig({ ...base, OPENAI_API_KEY: '' })).toThrow(
+      /OPENAI_API_KEY/,
+    );
   });
   it('alapértelmezett modelleket és küszöböket ad', () => {
     const c = loadRagConfig(base);
@@ -262,7 +298,11 @@ describe('loadRagConfig', () => {
     expect(c.topK).toBe(5);
   });
   it('env felülírja a defaultokat', () => {
-    const c = loadRagConfig({ ...base, RAG_TOP_K: '8', RAG_MIN_RERANK_SCORE: '0.5' });
+    const c = loadRagConfig({
+      ...base,
+      RAG_TOP_K: '8',
+      RAG_MIN_RERANK_SCORE: '0.5',
+    });
     expect(c.topK).toBe(8);
     expect(c.minRerankScore).toBe(0.5);
   });
@@ -274,29 +314,43 @@ describe('loadRagConfig', () => {
 ```bash
 nvm use 22 && npx nx test rag
 ```
+
 Expected: FAIL („loadRagConfig is not a function").
 
 - [ ] **Step 4: Implement `config.ts`**
 
 ```ts
 export interface RagConfig {
-  openaiApiKey: string; cohereApiKey: string; anthropicApiKey: string;
-  embedModel: string; rerankModel: string; hydeModel: string; answerModel: string;
-  minRerankScore: number; topN: number; topK: number;
+  openaiApiKey: string;
+  cohereApiKey: string;
+  anthropicApiKey: string;
+  embedModel: string;
+  rerankModel: string;
+  hydeModel: string;
+  answerModel: string;
+  minRerankScore: number;
+  topN: number;
+  topK: number;
 }
 function req(env: Record<string, string | undefined>, key: string): string {
   const v = env[key];
   if (!v) throw new Error(`Hiányzik a ${key}. Állítsd be a .env fájlban.`);
   return v;
 }
-function num(env: Record<string, string | undefined>, key: string, dflt: number): number {
+function num(
+  env: Record<string, string | undefined>,
+  key: string,
+  dflt: number,
+): number {
   const v = env[key];
   if (v === undefined || v === '') return dflt;
   const n = Number(v);
   if (Number.isNaN(n)) throw new Error(`A ${key} nem szám: ${v}`);
   return n;
 }
-export function loadRagConfig(env: Record<string, string | undefined> = process.env): RagConfig {
+export function loadRagConfig(
+  env: Record<string, string | undefined> = process.env,
+): RagConfig {
   return {
     openaiApiKey: req(env, 'OPENAI_API_KEY'),
     cohereApiKey: req(env, 'COHERE_API_KEY'),
@@ -327,10 +381,12 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 3: Markdown-parse + chunker (a tesztelt egység)
 
 **Files:**
+
 - Create: `packages/rag/src/lib/markdown.ts`
 - Create: `packages/rag/src/lib/chunker.ts`, `packages/rag/src/lib/chunker.spec.ts`
 
 **Interfaces:**
+
 - Produces:
   - `interface ParsedDoc { docId: string; title: string; source: string; category: string; body: string }`
   - `parseDoc(raw: string, docId: string): ParsedDoc`
@@ -345,7 +401,13 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ```ts
 import { describe, it, expect } from 'vitest';
-import { parseDoc, stripBoilerplate, extractRelated, resolveRelated, chunkDoc } from './chunker.js';
+import {
+  parseDoc,
+  stripBoilerplate,
+  extractRelated,
+  resolveRelated,
+  chunkDoc,
+} from './chunker.js';
 
 const RAW = `---
 title: How To Care for a Monstera
@@ -394,8 +456,13 @@ describe('stripBoilerplate', () => {
 describe('extractRelated + resolveRelated', () => {
   it('kinyeri a Learn More címeket és feloldja a létezőket', () => {
     const titles = extractRelated(parseDoc(RAW, 'x').body);
-    expect(titles).toEqual(['How To Care for a Snake Plant', 'Nonexistent Article']);
-    const map = new Map([['how to care for a snake plant', 'plants-101__snake']]);
+    expect(titles).toEqual([
+      'How To Care for a Snake Plant',
+      'Nonexistent Article',
+    ]);
+    const map = new Map([
+      ['how to care for a snake plant', 'plants-101__snake'],
+    ]);
     expect(resolveRelated(titles, map)).toEqual(['plants-101__snake']); // ismeretlent kihagy
   });
   it('üres, ha nincs Learn More', () => {
@@ -421,15 +488,21 @@ describe('chunkDoc', () => {
   it('nagy szekciót maxChars alatti chunkokra vág, overlappal', () => {
     const big = parseDoc(
       `---\ntitle: T\nsource: s\ncategory: c\n---\n## H\n` +
-        Array.from({ length: 30 }, (_, i) => `Paragraph number ${i} with some filler text.`).join('\n\n'),
+        Array.from(
+          { length: 30 },
+          (_, i) => `Paragraph number ${i} with some filler text.`,
+        ).join('\n\n'),
       'big',
     );
     const chunks = chunkDoc(big, { maxChars: 400 });
     expect(chunks.length).toBeGreaterThan(1);
-    for (const c of chunks) expect(c.content.length).toBeLessThanOrEqual(400 + 200); // prefix + overlap tolerancia
+    for (const c of chunks)
+      expect(c.content.length).toBeLessThanOrEqual(400 + 200); // prefix + overlap tolerancia
   });
   it('üres törzs → nincs chunk', () => {
-    expect(chunkDoc(parseDoc(`---\ntitle: T\nsource: s\ncategory: c\n---\n`, 'e'))).toEqual([]);
+    expect(
+      chunkDoc(parseDoc(`---\ntitle: T\nsource: s\ncategory: c\n---\n`, 'e')),
+    ).toEqual([]);
   });
 });
 ```
@@ -439,31 +512,53 @@ describe('chunkDoc', () => {
 ```bash
 nvm use 22 && npx nx test rag -- chunker
 ```
+
 Expected: FAIL (modul/függvény hiányzik).
 
 - [ ] **Step 3: Implement `markdown.ts` + `chunker.ts`**
 
 `markdown.ts`:
+
 ```ts
-export interface ParsedDoc { docId: string; title: string; source: string; category: string; body: string }
+export interface ParsedDoc {
+  docId: string;
+  title: string;
+  source: string;
+  category: string;
+  body: string;
+}
 
 export function parseDoc(raw: string, docId: string): ParsedDoc {
   const m = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   const fm = m ? m[1] : '';
   const body = m ? m[2] : raw;
-  const get = (k: string) => (fm.match(new RegExp(`^${k}:\\s*(.*)$`, 'm'))?.[1] ?? '').trim();
-  return { docId, title: get('title'), source: get('source'), category: get('category'), body };
+  const get = (k: string) =>
+    (fm.match(new RegExp(`^${k}:\\s*(.*)$`, 'm'))?.[1] ?? '').trim();
+  return {
+    docId,
+    title: get('title'),
+    source: get('source'),
+    category: get('category'),
+    body,
+  };
 }
 ```
 
 `chunker.ts`:
+
 ```ts
 import { parseDoc, type ParsedDoc } from './markdown.js';
 export { parseDoc, type ParsedDoc } from './markdown.js';
 
 export interface Chunk {
-  docId: string; title: string; source: string; category: string;
-  headingPath: string; chunkIndex: number; content: string; tokenCount: number;
+  docId: string;
+  title: string;
+  source: string;
+  category: string;
+  headingPath: string;
+  chunkIndex: number;
+  content: string;
+  tokenCount: number;
 }
 
 export const estimateTokens = (s: string): number => Math.ceil(s.length / 4);
@@ -473,13 +568,18 @@ export function stripBoilerplate(body: string): string {
   let out = body;
   out = out.replace(/^#{1,6}\s*Perfect Pairings[\s\S]*$/im, '');
   out = out.replace(/^#{1,6}\s*Words By The Sill[\s\S]*$/im, '');
-  out = out.replace(/^#{1,6}\s*Learn More[\s\S]*?(?=^#{1,6}\s|(?![\s\S]))/gim, '');
+  out = out.replace(
+    /^#{1,6}\s*Learn More[\s\S]*?(?=^#{1,6}\s|(?![\s\S]))/gim,
+    '',
+  );
   out = out.replace(/^\s*Shop .*!\s*$/gim, '');
   return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 export function extractRelated(body: string): string[] {
-  const block = body.match(/^#{1,6}\s*Learn More\s*\n([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/im);
+  const block = body.match(
+    /^#{1,6}\s*Learn More\s*\n([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/im,
+  );
   if (!block) return [];
   return block[1]
     .split('\n')
@@ -487,7 +587,10 @@ export function extractRelated(body: string): string[] {
     .filter((l) => l.length > 0);
 }
 
-export function resolveRelated(titles: string[], titleToDocId: Map<string, string>): string[] {
+export function resolveRelated(
+  titles: string[],
+  titleToDocId: Map<string, string>,
+): string[] {
   const out: string[] = [];
   for (const t of titles) {
     const id = titleToDocId.get(t.toLowerCase().trim());
@@ -496,7 +599,10 @@ export function resolveRelated(titles: string[], titleToDocId: Map<string, strin
   return out;
 }
 
-interface Section { headingPath: string; text: string }
+interface Section {
+  headingPath: string;
+  text: string;
+}
 
 // A törzset heading-szekciókra bontja, heading-path stack-kel (## > ### > ####).
 function splitSections(body: string): Section[] {
@@ -515,7 +621,8 @@ function splitSections(body: string): Section[] {
     if (h) {
       flush();
       const level = h[1].length;
-      while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
+      while (stack.length && stack[stack.length - 1].level >= level)
+        stack.pop();
       stack.push({ level, title: h[2].trim() });
     } else {
       buf.push(line);
@@ -526,7 +633,10 @@ function splitSections(body: string): Section[] {
 }
 
 // Bekezdés-határon pakol maxChars-ig, 1 bekezdés overlappal; nem lép át szekció-határt.
-export function chunkDoc(doc: ParsedDoc, opts?: { maxChars?: number; minChars?: number }): Chunk[] {
+export function chunkDoc(
+  doc: ParsedDoc,
+  opts?: { maxChars?: number; minChars?: number },
+): Chunk[] {
   const maxChars = opts?.maxChars ?? 1600; // ~400 token
   const clean = stripBoilerplate(doc.body);
   const sections = splitSections(clean);
@@ -538,12 +648,21 @@ export function chunkDoc(doc: ParsedDoc, opts?: { maxChars?: number; minChars?: 
     const prefix = `${doc.title}${headingPath ? ` — ${headingPath}` : ''}\n\n`;
     const content = prefix + body;
     chunks.push({
-      docId: doc.docId, title: doc.title, source: doc.source, category: doc.category,
-      headingPath, chunkIndex: index++, content, tokenCount: estimateTokens(content),
+      docId: doc.docId,
+      title: doc.title,
+      source: doc.source,
+      category: doc.category,
+      headingPath,
+      chunkIndex: index++,
+      content,
+      tokenCount: estimateTokens(content),
     });
   };
   for (const sec of sections) {
-    const paras = sec.text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+    const paras = sec.text
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter(Boolean);
     let buf: string[] = [];
     let len = 0;
     for (const p of paras) {
@@ -567,6 +686,7 @@ export function chunkDoc(doc: ParsedDoc, opts?: { maxChars?: number; minChars?: 
 ```bash
 nvm use 22 && npx nx test rag -- chunker
 ```
+
 Expected: PASS (mind).
 
 - [ ] **Step 5: Commit**
@@ -583,10 +703,12 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 4: Providers interfész + fake + éles implementációk
 
 **Files:**
+
 - Create: `packages/rag/src/lib/providers.ts`, `providers.spec.ts`
 - Create: `packages/rag/src/lib/openai-embeddings.ts`, `cohere-rerank.ts`, `anthropic-gen.ts`
 
 **Interfaces:**
+
 - Produces:
   - `interface RerankHit { index: number; score: number }`
   - `interface Providers { embed(texts: string[]): Promise<number[][]>; hyde(query: string): Promise<string>; rerank(query: string, docs: string[], topN: number): Promise<RerankHit[]>; answer(system: string, prompt: string): Promise<string> }`
@@ -607,15 +729,18 @@ describe('FakeProviders', () => {
     expect(a.length).toBe(1536);
   });
   it('rerank: a query-szavakat jobban fedő doksi kap magasabb score-t, csökkenő sorrend', async () => {
-    const hits = await p.rerank('snake plant light', [
-      'about fertilizer schedules',
-      'snake plant needs bright light',
-    ], 2);
+    const hits = await p.rerank(
+      'snake plant light',
+      ['about fertilizer schedules', 'snake plant needs bright light'],
+      2,
+    );
     expect(hits[0].index).toBe(1);
     expect(hits[0].score).toBeGreaterThanOrEqual(hits[1].score);
   });
   it('hyde: nem üres, tartalmazza a query-t', async () => {
-    expect((await p.hyde('how to water snake plant')).length).toBeGreaterThan(0);
+    expect((await p.hyde('how to water snake plant')).length).toBeGreaterThan(
+      0,
+    );
   });
 });
 ```
@@ -628,7 +753,10 @@ import { embedFromOpenAI } from './openai-embeddings.js';
 import { rerankFromCohere } from './cohere-rerank.js';
 import { hydeFromAnthropic, answerFromAnthropic } from './anthropic-gen.js';
 
-export interface RerankHit { index: number; score: number }
+export interface RerankHit {
+  index: number;
+  score: number;
+}
 export interface Providers {
   embed(texts: string[]): Promise<number[][]>;
   hyde(query: string): Promise<string>;
@@ -644,15 +772,22 @@ export class FakeProviders implements Providers {
       const v = new Array(1536).fill(0);
       for (const tok of tokenize(t)) {
         let h = 0;
-        for (let i = 0; i < tok.length; i++) h = (h * 31 + tok.charCodeAt(i)) >>> 0;
+        for (let i = 0; i < tok.length; i++)
+          h = (h * 31 + tok.charCodeAt(i)) >>> 0;
         v[h % 1536] += 1;
       }
       const norm = Math.hypot(...v) || 1;
       return v.map((x) => x / norm);
     });
   }
-  async hyde(query: string): Promise<string> { return `Hypothetical answer about: ${query}`; }
-  async rerank(query: string, docs: string[], topN: number): Promise<RerankHit[]> {
+  async hyde(query: string): Promise<string> {
+    return `Hypothetical answer about: ${query}`;
+  }
+  async rerank(
+    query: string,
+    docs: string[],
+    topN: number,
+  ): Promise<RerankHit[]> {
     const q = new Set(tokenize(query));
     return docs
       .map((d, index) => {
@@ -663,7 +798,9 @@ export class FakeProviders implements Providers {
       .sort((a, b) => b.score - a.score)
       .slice(0, topN);
   }
-  async answer(_system: string, prompt: string): Promise<string> { return `ANSWER: ${prompt.slice(0, 80)}`; }
+  async answer(_system: string, prompt: string): Promise<string> {
+    return `ANSWER: ${prompt.slice(0, 80)}`;
+  }
 }
 
 export function createProviders(cfg: RagConfig): Providers {
@@ -679,39 +816,65 @@ export function createProviders(cfg: RagConfig): Providers {
 - [ ] **Step 4: Éles implementációk (a golden-set futáshoz; unit-teszt csak a fake-et fedi)**
 
 `openai-embeddings.ts`:
+
 ```ts
 import { createOpenAI } from '@ai-sdk/openai';
 import { embedMany } from 'ai';
 import type { RagConfig } from './config.js';
 
-export async function embedFromOpenAI(cfg: RagConfig, texts: string[]): Promise<number[][]> {
+export async function embedFromOpenAI(
+  cfg: RagConfig,
+  texts: string[],
+): Promise<number[][]> {
   const openai = createOpenAI({ apiKey: cfg.openaiApiKey });
-  const { embeddings } = await embedMany({ model: openai.embedding(cfg.embedModel), values: texts });
+  const { embeddings } = await embedMany({
+    model: openai.embedding(cfg.embedModel),
+    values: texts,
+  });
   return embeddings;
 }
 ```
 
 `cohere-rerank.ts`:
+
 ```ts
 import type { RagConfig } from './config.js';
 import type { RerankHit } from './providers.js';
 
 export async function rerankFromCohere(
-  cfg: RagConfig, query: string, docs: string[], topN: number,
+  cfg: RagConfig,
+  query: string,
+  docs: string[],
+  topN: number,
 ): Promise<RerankHit[]> {
   if (docs.length === 0) return [];
   const res = await fetch('https://api.cohere.com/v2/rerank', {
     method: 'POST',
-    headers: { authorization: `Bearer ${cfg.cohereApiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: cfg.rerankModel, query, documents: docs, top_n: Math.min(topN, docs.length) }),
+    headers: {
+      authorization: `Bearer ${cfg.cohereApiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: cfg.rerankModel,
+      query,
+      documents: docs,
+      top_n: Math.min(topN, docs.length),
+    }),
   });
-  if (!res.ok) throw new Error(`Cohere rerank hiba: ${res.status} ${await res.text()}`);
-  const json = (await res.json()) as { results: { index: number; relevance_score: number }[] };
-  return json.results.map((r) => ({ index: r.index, score: r.relevance_score }));
+  if (!res.ok)
+    throw new Error(`Cohere rerank hiba: ${res.status} ${await res.text()}`);
+  const json = (await res.json()) as {
+    results: { index: number; relevance_score: number }[];
+  };
+  return json.results.map((r) => ({
+    index: r.index,
+    score: r.relevance_score,
+  }));
 }
 ```
 
 `anthropic-gen.ts`:
+
 ```ts
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
@@ -721,15 +884,30 @@ const HYDE_SYSTEM =
   'You write a short, factual hypothetical passage (3-5 sentences) that would answer the question, ' +
   'as if excerpted from a houseplant care article. Write in English. No preamble.';
 
-export async function hydeFromAnthropic(cfg: RagConfig, query: string): Promise<string> {
+export async function hydeFromAnthropic(
+  cfg: RagConfig,
+  query: string,
+): Promise<string> {
   const anthropic = createAnthropic({ apiKey: cfg.anthropicApiKey });
-  const { text } = await generateText({ model: anthropic(cfg.hydeModel), system: HYDE_SYSTEM, prompt: query });
+  const { text } = await generateText({
+    model: anthropic(cfg.hydeModel),
+    system: HYDE_SYSTEM,
+    prompt: query,
+  });
   return text;
 }
 
-export async function answerFromAnthropic(cfg: RagConfig, system: string, prompt: string): Promise<string> {
+export async function answerFromAnthropic(
+  cfg: RagConfig,
+  system: string,
+  prompt: string,
+): Promise<string> {
   const anthropic = createAnthropic({ apiKey: cfg.anthropicApiKey });
-  const { text } = await generateText({ model: anthropic(cfg.answerModel), system, prompt });
+  const { text } = await generateText({
+    model: anthropic(cfg.answerModel),
+    system,
+    prompt,
+  });
   return text;
 }
 ```
@@ -749,9 +927,11 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 5: Store — pgvector + in-memory
 
 **Files:**
+
 - Create: `packages/rag/src/lib/store.ts`, `store.spec.ts`
 
 **Interfaces:**
+
 - Produces:
   - `interface StoredChunk extends Chunk { embedding: number[]; embedModel: string; relatedDocs: string[]; contentHash: string }`
   - `interface SearchHit { docId; title; source; category; headingPath; content; distance: number }`
@@ -766,13 +946,28 @@ import { describe, it, expect } from 'vitest';
 import { InMemoryStore, toVectorLiteral } from './store.js';
 import type { StoredChunk } from './store.js';
 
-const chunk = (docId: string, content: string, embedding: number[]): StoredChunk => ({
-  docId, title: docId, source: `src/${docId}`, category: 'c', headingPath: '', chunkIndex: 0,
-  content, tokenCount: 1, embedding, embedModel: 'fake', relatedDocs: [], contentHash: 'h',
+const chunk = (
+  docId: string,
+  content: string,
+  embedding: number[],
+): StoredChunk => ({
+  docId,
+  title: docId,
+  source: `src/${docId}`,
+  category: 'c',
+  headingPath: '',
+  chunkIndex: 0,
+  content,
+  tokenCount: 1,
+  embedding,
+  embedModel: 'fake',
+  relatedDocs: [],
+  contentHash: 'h',
 });
 
 describe('toVectorLiteral', () => {
-  it('pgvector-literált ad', () => expect(toVectorLiteral([1, 0.5])).toBe('[1,0.5]'));
+  it('pgvector-literált ad', () =>
+    expect(toVectorLiteral([1, 0.5])).toBe('[1,0.5]'));
 });
 
 describe('InMemoryStore', () => {
@@ -807,8 +1002,21 @@ describe('InMemoryStore', () => {
 import { Pool } from 'pg';
 import type { Chunk } from './chunker.js';
 
-export interface StoredChunk extends Chunk { embedding: number[]; embedModel: string; relatedDocs: string[]; contentHash: string }
-export interface SearchHit { docId: string; title: string; source: string; category: string; headingPath: string; content: string; distance: number }
+export interface StoredChunk extends Chunk {
+  embedding: number[];
+  embedModel: string;
+  relatedDocs: string[];
+  contentHash: string;
+}
+export interface SearchHit {
+  docId: string;
+  title: string;
+  source: string;
+  category: string;
+  headingPath: string;
+  content: string;
+  distance: number;
+}
 export interface Store {
   upsertDoc(docId: string, chunks: StoredChunk[]): Promise<void>;
   similaritySearch(embedding: number[], topN: number): Promise<SearchHit[]>;
@@ -818,26 +1026,46 @@ export interface Store {
 
 export const toVectorLiteral = (v: number[]): string => `[${v.join(',')}]`;
 const cosineDistance = (a: number[], b: number[]): number => {
-  let dot = 0, na = 0, nb = 0;
-  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
-  return 1 - dot / ((Math.sqrt(na) * Math.sqrt(nb)) || 1);
+  let dot = 0,
+    na = 0,
+    nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return 1 - dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
 };
 
 export class InMemoryStore implements Store {
   private byDoc = new Map<string, StoredChunk[]>();
-  async upsertDoc(docId: string, chunks: StoredChunk[]): Promise<void> { this.byDoc.set(docId, chunks); }
-  async deleteByDocId(docId: string): Promise<void> { this.byDoc.delete(docId); }
+  async upsertDoc(docId: string, chunks: StoredChunk[]): Promise<void> {
+    this.byDoc.set(docId, chunks);
+  }
+  async deleteByDocId(docId: string): Promise<void> {
+    this.byDoc.delete(docId);
+  }
   async docHashes(): Promise<Map<string, string>> {
     const m = new Map<string, string>();
     for (const [id, cs] of this.byDoc) if (cs[0]) m.set(id, cs[0].contentHash);
     return m;
   }
-  async similaritySearch(embedding: number[], topN: number): Promise<SearchHit[]> {
+  async similaritySearch(
+    embedding: number[],
+    topN: number,
+  ): Promise<SearchHit[]> {
     const all: SearchHit[] = [];
     for (const cs of this.byDoc.values())
       for (const c of cs)
-        all.push({ docId: c.docId, title: c.title, source: c.source, category: c.category,
-          headingPath: c.headingPath, content: c.content, distance: cosineDistance(embedding, c.embedding) });
+        all.push({
+          docId: c.docId,
+          title: c.title,
+          source: c.source,
+          category: c.category,
+          headingPath: c.headingPath,
+          content: c.content,
+          distance: cosineDistance(embedding, c.embedding),
+        });
     return all.sort((a, b) => a.distance - b.distance).slice(0, topN);
   }
 }
@@ -848,37 +1076,69 @@ export class PgStore implements Store {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query('DELETE FROM knowledge_chunks WHERE doc_id = $1', [docId]);
+      await client.query('DELETE FROM knowledge_chunks WHERE doc_id = $1', [
+        docId,
+      ]);
       for (const c of chunks) {
         await client.query(
           `INSERT INTO knowledge_chunks
              (doc_id, doc_title, doc_source, doc_category, heading_path, chunk_index,
               content, content_hash, related_docs, token_count, embedding, embed_model)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::vector,$12)`,
-          [c.docId, c.title, c.source, c.category, c.headingPath, c.chunkIndex,
-           c.content, c.contentHash, c.relatedDocs, c.tokenCount, toVectorLiteral(c.embedding), c.embedModel],
+          [
+            c.docId,
+            c.title,
+            c.source,
+            c.category,
+            c.headingPath,
+            c.chunkIndex,
+            c.content,
+            c.contentHash,
+            c.relatedDocs,
+            c.tokenCount,
+            toVectorLiteral(c.embedding),
+            c.embedModel,
+          ],
         );
       }
       await client.query('COMMIT');
-    } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
   async deleteByDocId(docId: string): Promise<void> {
-    await this.pool.query('DELETE FROM knowledge_chunks WHERE doc_id = $1', [docId]);
+    await this.pool.query('DELETE FROM knowledge_chunks WHERE doc_id = $1', [
+      docId,
+    ]);
   }
   async docHashes(): Promise<Map<string, string>> {
     const r = await this.pool.query<{ doc_id: string; content_hash: string }>(
-      'SELECT DISTINCT ON (doc_id) doc_id, content_hash FROM knowledge_chunks ORDER BY doc_id, chunk_index');
+      'SELECT DISTINCT ON (doc_id) doc_id, content_hash FROM knowledge_chunks ORDER BY doc_id, chunk_index',
+    );
     return new Map(r.rows.map((row) => [row.doc_id, row.content_hash]));
   }
-  async similaritySearch(embedding: number[], topN: number): Promise<SearchHit[]> {
+  async similaritySearch(
+    embedding: number[],
+    topN: number,
+  ): Promise<SearchHit[]> {
     const r = await this.pool.query(
       `SELECT doc_id, doc_title, doc_source, doc_category, heading_path, content,
               embedding <=> $1::vector AS distance
          FROM knowledge_chunks ORDER BY embedding <=> $1::vector LIMIT $2`,
       [toVectorLiteral(embedding), topN],
     );
-    return r.rows.map((row: any) => ({ docId: row.doc_id, title: row.doc_title, source: row.doc_source,
-      category: row.doc_category, headingPath: row.heading_path, content: row.content, distance: Number(row.distance) }));
+    return r.rows.map((row: any) => ({
+      docId: row.doc_id,
+      title: row.doc_title,
+      source: row.doc_source,
+      category: row.doc_category,
+      headingPath: row.heading_path,
+      content: row.content,
+      distance: Number(row.distance),
+    }));
   }
 }
 ```
@@ -898,9 +1158,11 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 6: Ingest pipeline (content-hash skip)
 
 **Files:**
+
 - Create: `packages/rag/src/lib/ingest.ts`, `ingest.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `parseDoc`, `chunkDoc`, `extractRelated`, `resolveRelated` (Task 3); `Providers` (Task 4); `Store`, `StoredChunk` (Task 5).
 - Produces:
   - `hashBody(body: string): string` (sha256 hex)
@@ -915,12 +1177,20 @@ import { ingestDocs } from './ingest.js';
 import { FakeProviders } from './providers.js';
 import { InMemoryStore } from './store.js';
 
-const FM = (t: string, b: string) => `---\ntitle: ${t}\nsource: s/${t}\ncategory: c\n---\n## H\n${b}`;
+const FM = (t: string, b: string) =>
+  `---\ntitle: ${t}\nsource: s/${t}\ncategory: c\n---\n## H\n${b}`;
 
 describe('ingestDocs', () => {
   it('beindexeli az összes doksit, majd változatlanul újrafuttatva mind skip', async () => {
-    const files = [{ docId: 'a', raw: FM('A', 'apple text') }, { docId: 'b', raw: FM('B', 'banana text') }];
-    const deps = { providers: new FakeProviders(), store: new InMemoryStore(), embedModel: 'fake' };
+    const files = [
+      { docId: 'a', raw: FM('A', 'apple text') },
+      { docId: 'b', raw: FM('B', 'banana text') },
+    ];
+    const deps = {
+      providers: new FakeProviders(),
+      store: new InMemoryStore(),
+      embedModel: 'fake',
+    };
     const r1 = await ingestDocs(files, deps);
     expect(r1.indexed).toBe(2);
     const r2 = await ingestDocs(files, deps);
@@ -930,7 +1200,13 @@ describe('ingestDocs', () => {
   it('törli a filesystemből eltűnt doksi chunkjait', async () => {
     const store = new InMemoryStore();
     const deps = { providers: new FakeProviders(), store, embedModel: 'fake' };
-    await ingestDocs([{ docId: 'a', raw: FM('A', 'x') }, { docId: 'b', raw: FM('B', 'y') }], deps);
+    await ingestDocs(
+      [
+        { docId: 'a', raw: FM('A', 'x') },
+        { docId: 'b', raw: FM('B', 'y') },
+      ],
+      deps,
+    );
     const r = await ingestDocs([{ docId: 'a', raw: FM('A', 'x') }], deps); // 'b' eltűnt
     expect(r.deleted).toBe(1);
     expect((await store.docHashes()).has('b')).toBe(false);
@@ -947,9 +1223,14 @@ import { chunkDoc, extractRelated, resolveRelated } from './chunker.js';
 import type { Providers } from './providers.js';
 import type { Store, StoredChunk } from './store.js';
 
-export const hashBody = (body: string): string => createHash('sha256').update(body).digest('hex');
+export const hashBody = (body: string): string =>
+  createHash('sha256').update(body).digest('hex');
 
-export interface IngestResult { indexed: number; skipped: number; deleted: number }
+export interface IngestResult {
+  indexed: number;
+  skipped: number;
+  deleted: number;
+}
 
 export async function ingestDocs(
   files: { docId: string; raw: string }[],
@@ -964,20 +1245,35 @@ export async function ingestDocs(
     return { file: f, doc };
   });
 
-  let indexed = 0, skipped = 0, deleted = 0;
+  let indexed = 0,
+    skipped = 0,
+    deleted = 0;
   const present = new Set(files.map((f) => f.docId));
   for (const docId of existing.keys())
-    if (!present.has(docId)) { await store.deleteByDocId(docId); deleted++; }
+    if (!present.has(docId)) {
+      await store.deleteByDocId(docId);
+      deleted++;
+    }
 
   for (const { doc } of parsed) {
     const hash = hashBody(doc.body);
-    if (existing.get(doc.docId) === hash) { skipped++; continue; }
+    if (existing.get(doc.docId) === hash) {
+      skipped++;
+      continue;
+    }
     const relatedDocs = resolveRelated(extractRelated(doc.body), titleToDocId);
     const chunks = chunkDoc(doc);
-    if (chunks.length === 0) { skipped++; continue; }
+    if (chunks.length === 0) {
+      skipped++;
+      continue;
+    }
     const embeddings = await providers.embed(chunks.map((c) => c.content));
     const stored: StoredChunk[] = chunks.map((c, i) => ({
-      ...c, embedding: embeddings[i], embedModel, relatedDocs, contentHash: hash,
+      ...c,
+      embedding: embeddings[i],
+      embedModel,
+      relatedDocs,
+      contentHash: hash,
     }));
     await store.upsertDoc(doc.docId, stored);
     indexed++;
@@ -1001,9 +1297,11 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 7: Retrieve — raw vs full (HyDE + rerank)
 
 **Files:**
+
 - Create: `packages/rag/src/lib/retrieve.ts`, `retrieve.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `Providers` (Task 4), `Store`, `SearchHit` (Task 5).
 - Produces:
   - `interface RetrievedChunk { docId; title; source; category; headingPath; content; distance: number; rerankScore?: number }`
@@ -1020,24 +1318,51 @@ import type { StoredChunk } from './store.js';
 
 async function seed(store: InMemoryStore, p: FakeProviders) {
   const docs = [
-    { id: 'generic', text: 'monstera general care watering light soil repotting fertilizer' },
+    {
+      id: 'generic',
+      text: 'monstera general care watering light soil repotting fertilizer',
+    },
     { id: 'holes', text: 'why monstera leaves have holes fenestration splits' },
   ];
   for (const d of docs) {
     const [emb] = await p.embed([d.text]);
-    const c: StoredChunk = { docId: d.id, title: d.id, source: `s/${d.id}`, category: 'c', headingPath: '',
-      chunkIndex: 0, content: d.text, tokenCount: 1, embedding: emb, embedModel: 'fake', relatedDocs: [], contentHash: 'h' };
+    const c: StoredChunk = {
+      docId: d.id,
+      title: d.id,
+      source: `s/${d.id}`,
+      category: 'c',
+      headingPath: '',
+      chunkIndex: 0,
+      content: d.text,
+      tokenCount: 1,
+      embedding: emb,
+      embedModel: 'fake',
+      relatedDocs: [],
+      contentHash: 'h',
+    };
     await store.upsertDoc(d.id, [c]);
   }
 }
 
 describe('retrieve', () => {
   it('raw és full is ad találatot, a full rerankScore-t is', async () => {
-    const store = new InMemoryStore(); const p = new FakeProviders(); await seed(store, p);
-    const raw = await retrieve('holes in monstera leaves', { providers: p, store }, { mode: 'raw', topN: 5, topK: 2 });
-    const full = await retrieve('holes in monstera leaves', { providers: p, store }, { mode: 'full', topN: 5, topK: 2 });
+    const store = new InMemoryStore();
+    const p = new FakeProviders();
+    await seed(store, p);
+    const raw = await retrieve(
+      'holes in monstera leaves',
+      { providers: p, store },
+      { mode: 'raw', topN: 5, topK: 2 },
+    );
+    const full = await retrieve(
+      'holes in monstera leaves',
+      { providers: p, store },
+      { mode: 'full', topN: 5, topK: 2 },
+    );
     expect(raw.length).toBeGreaterThan(0);
-    expect(full[0].rerankScore).toBeGreaterThanOrEqual(full[1]?.rerankScore ?? 0);
+    expect(full[0].rerankScore).toBeGreaterThanOrEqual(
+      full[1]?.rerankScore ?? 0,
+    );
     expect(full[0].docId).toBe('holes'); // a rerank a pontosan releváns doksit hozza elöl
   });
 });
@@ -1050,8 +1375,14 @@ import type { Providers } from './providers.js';
 import type { Store } from './store.js';
 
 export interface RetrievedChunk {
-  docId: string; title: string; source: string; category: string;
-  headingPath: string; content: string; distance: number; rerankScore?: number;
+  docId: string;
+  title: string;
+  source: string;
+  category: string;
+  headingPath: string;
+  content: string;
+  distance: number;
+  rerankScore?: number;
 }
 
 export async function retrieve(
@@ -1062,10 +1393,17 @@ export async function retrieve(
   const { providers, store } = deps;
   const embedText = opts.mode === 'full' ? await providers.hyde(query) : query;
   const [embedding] = await providers.embed([embedText]);
-  const hits = await store.similaritySearch(embedding, opts.mode === 'full' ? opts.topN : opts.topK);
+  const hits = await store.similaritySearch(
+    embedding,
+    opts.mode === 'full' ? opts.topN : opts.topK,
+  );
   if (opts.mode === 'raw') return hits.slice(0, opts.topK);
 
-  const ranked = await providers.rerank(query, hits.map((h) => h.content), opts.topK);
+  const ranked = await providers.rerank(
+    query,
+    hits.map((h) => h.content),
+    opts.topK,
+  );
   return ranked.map((r) => ({ ...hits[r.index], rerankScore: r.score }));
 }
 ```
@@ -1085,9 +1423,11 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 8: Answer — grounding (küszöb + forráshivatkozás)
 
 **Files:**
+
 - Create: `packages/rag/src/lib/answer.ts`, `answer.spec.ts`
 
 **Interfaces:**
+
 - Consumes: `retrieve` (Task 7), `Providers` (Task 4), `Store` (Task 5).
 - Produces:
   - `const NO_ANSWER = 'Erről nincs információ a Plantbase tudásbázisban.'`
@@ -1104,28 +1444,58 @@ import { FakeProviders } from './providers.js';
 import { InMemoryStore } from './store.js';
 import type { StoredChunk } from './store.js';
 
-async function seed(store: InMemoryStore, p: FakeProviders, id: string, text: string) {
+async function seed(
+  store: InMemoryStore,
+  p: FakeProviders,
+  id: string,
+  text: string,
+) {
   const [emb] = await p.embed([text]);
-  const c: StoredChunk = { docId: id, title: id, source: `s/${id}`, category: 'c', headingPath: '',
-    chunkIndex: 0, content: text, tokenCount: 1, embedding: emb, embedModel: 'fake', relatedDocs: [], contentHash: 'h' };
+  const c: StoredChunk = {
+    docId: id,
+    title: id,
+    source: `s/${id}`,
+    category: 'c',
+    headingPath: '',
+    chunkIndex: 0,
+    content: text,
+    tokenCount: 1,
+    embedding: emb,
+    embedModel: 'fake',
+    relatedDocs: [],
+    contentHash: 'h',
+  };
   await store.upsertDoc(id, [c]);
 }
 
 describe('answerFromKnowledge', () => {
   it('találat esetén grounded válasz + forrás', async () => {
-    const store = new InMemoryStore(); const p = new FakeProviders();
-    await seed(store, p, 'snake', 'snake plant water every two weeks bright indirect light');
-    const r = await answerFromKnowledge('how often water snake plant', { providers: p, store },
-      { topN: 5, topK: 3, minRerankScore: 0.05 });
+    const store = new InMemoryStore();
+    const p = new FakeProviders();
+    await seed(
+      store,
+      p,
+      'snake',
+      'snake plant water every two weeks bright indirect light',
+    );
+    const r = await answerFromKnowledge(
+      'how often water snake plant',
+      { providers: p, store },
+      { topN: 5, topK: 3, minRerankScore: 0.05 },
+    );
     expect(r.grounded).toBe(true);
     expect(r.sources[0].source).toBe('s/snake');
     expect(r.answer).not.toBe(NO_ANSWER);
   });
   it('küszöb alatt → nincs kitalálás', async () => {
-    const store = new InMemoryStore(); const p = new FakeProviders();
+    const store = new InMemoryStore();
+    const p = new FakeProviders();
     await seed(store, p, 'snake', 'snake plant care');
-    const r = await answerFromKnowledge('venus flytrap carnivorous plant care', { providers: p, store },
-      { topN: 5, topK: 3, minRerankScore: 0.9 });
+    const r = await answerFromKnowledge(
+      'venus flytrap carnivorous plant care',
+      { providers: p, store },
+      { topN: 5, topK: 3, minRerankScore: 0.9 },
+    );
     expect(r.grounded).toBe(false);
     expect(r.answer).toBe(NO_ANSWER);
     expect(r.sources).toEqual([]);
@@ -1147,9 +1517,16 @@ const ANSWER_SYSTEM =
   'magyarul, tömören. Ha a kontextus nem fedi a kérdést, mondd ki, hogy nincs róla információ. ' +
   'A válasz végén sorold fel a felhasznált forrásokat (cím — URL). Soha ne találj ki forrást.';
 
-export interface GroundedAnswer { answer: string; grounded: boolean; sources: { title: string; source: string }[] }
+export interface GroundedAnswer {
+  answer: string;
+  grounded: boolean;
+  sources: { title: string; source: string }[];
+}
 
-export function buildGroundingPrompt(query: string, chunks: RetrievedChunk[]): string {
+export function buildGroundingPrompt(
+  query: string,
+  chunks: RetrievedChunk[],
+): string {
   const ctx = chunks
     .map((c, i) => `[${i + 1}] Forrás: ${c.title} — ${c.source}\n${c.content}`)
     .join('\n\n---\n\n');
@@ -1161,12 +1538,21 @@ export async function answerFromKnowledge(
   deps: { providers: Providers; store: Store },
   opts: { topN: number; topK: number; minRerankScore: number },
 ): Promise<GroundedAnswer> {
-  const chunks = await retrieve(query, deps, { mode: 'full', topN: opts.topN, topK: opts.topK });
+  const chunks = await retrieve(query, deps, {
+    mode: 'full',
+    topN: opts.topN,
+    topK: opts.topK,
+  });
   const best = chunks[0]?.rerankScore ?? 0;
-  if (chunks.length === 0 || best < opts.minRerankScore) return { answer: NO_ANSWER, grounded: false, sources: [] };
-  const answer = await deps.providers.answer(ANSWER_SYSTEM, buildGroundingPrompt(query, chunks));
+  if (chunks.length === 0 || best < opts.minRerankScore)
+    return { answer: NO_ANSWER, grounded: false, sources: [] };
+  const answer = await deps.providers.answer(
+    ANSWER_SYSTEM,
+    buildGroundingPrompt(query, chunks),
+  );
   const seen = new Set<string>();
-  const sources = chunks.filter((c) => !seen.has(c.source) && seen.add(c.source))
+  const sources = chunks
+    .filter((c) => !seen.has(c.source) && seen.add(c.source))
     .map((c) => ({ title: c.title, source: c.source }));
   return { answer, grounded: true, sources };
 }
@@ -1191,12 +1577,14 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 9: Agent-integráció — `searchKnowledge` tool + system prompt
 
 **Files:**
+
 - Create: `packages/core/src/lib/tools/search-knowledge.ts`, `search-knowledge.spec.ts`
 - Modify: `packages/core/src/lib/tools/agent-tools.ts` (regisztráció)
 - Modify: `packages/core/src/lib/system-prompt.ts`
 - Modify: `packages/core/package.json` (`@plantbase/rag` dep)
 
 **Interfaces:**
+
 - Consumes: `answerFromKnowledge`, `loadRagConfig`, `createProviders`, `PgStore` a `@plantbase/rag`-ból; a RO `Pool` a `run-sql.ts` mintájára.
 - Produces: `searchKnowledge` tool a `ToolSet`-ben (AI SDK `tool()`), input `{ query: string }`, output: grounded válasz-objektum a modellnek (forrásokkal), vagy a „nincs a tudásbázisban" jelzés.
 
@@ -1208,14 +1596,22 @@ import { buildSearchKnowledge } from './search-knowledge.js';
 
 describe('buildSearchKnowledge', () => {
   it('a grounded választ + forrásokat adja vissza a modellnek', async () => {
-    const fakeAnswer = async () => ({ answer: 'Kéthetente öntözd.', grounded: true, sources: [{ title: 'Snake', source: 's/snake' }] });
+    const fakeAnswer = async () => ({
+      answer: 'Kéthetente öntözd.',
+      grounded: true,
+      sources: [{ title: 'Snake', source: 's/snake' }],
+    });
     const tool = buildSearchKnowledge(fakeAnswer as any);
     const out = await tool.execute!({ query: 'öntözés?' }, {} as any);
     expect(out).toMatchObject({ grounded: true });
     expect(JSON.stringify(out)).toContain('s/snake');
   });
   it('nincs találatkor grounded:false', async () => {
-    const fakeAnswer = async () => ({ answer: 'Erről nincs információ a Plantbase tudásbázisban.', grounded: false, sources: [] });
+    const fakeAnswer = async () => ({
+      answer: 'Erről nincs információ a Plantbase tudásbázisban.',
+      grounded: false,
+      sources: [],
+    });
     const tool = buildSearchKnowledge(fakeAnswer as any);
     const out = await tool.execute!({ query: 'x' }, {} as any);
     expect(out).toMatchObject({ grounded: false });
@@ -1239,7 +1635,9 @@ export function buildSearchKnowledge(answer: AnswerFn) {
       'Növénygondozási TUDÁS-kérdésekre (hogyan gondozzam / miért / tünetek) keres a Plantbase ' +
       'tudásbázisban (cikkek). Nem katalógus-kérdésekre. Forráshivatkozásos, grounded választ ad; ' +
       'ha nincs találat, azt jelzi (grounded=false) — ilyenkor mondd ki, hogy nincs róla információ.',
-    inputSchema: z.object({ query: z.string().describe('A tudás-kérdés természetes nyelven.') }),
+    inputSchema: z.object({
+      query: z.string().describe('A tudás-kérdés természetes nyelven.'),
+    }),
     execute: async ({ query }) => answer(query),
   });
 }
@@ -1248,24 +1646,36 @@ export function buildSearchKnowledge(answer: AnswerFn) {
 - [ ] **Step 4: Éles bekötés `agent-tools.ts`-ben (lazy, RO pool)**
 
 Az `agent-tools.ts` `buildTools(collector)`-jába vedd fel a `searchKnowledge`-t. Éles `AnswerFn` (a fájl tetején, lazy singletonokkal a `run-sql.ts` Pool-mintájára):
+
 ```ts
 import { Pool } from 'pg';
-import { loadRagConfig, createProviders, PgStore, answerFromKnowledge } from '@plantbase/rag';
+import {
+  loadRagConfig,
+  createProviders,
+  PgStore,
+  answerFromKnowledge,
+} from '@plantbase/rag';
 
 let ragPool: Pool | undefined;
 function liveAnswer(query: string) {
   const cfg = loadRagConfig();
   ragPool ??= new Pool({ connectionString: process.env.DATABASE_URL_READONLY });
   const deps = { providers: createProviders(cfg), store: new PgStore(ragPool) };
-  return answerFromKnowledge(query, deps, { topN: cfg.topN, topK: cfg.topK, minRerankScore: cfg.minRerankScore });
+  return answerFromKnowledge(query, deps, {
+    topN: cfg.topN,
+    topK: cfg.topK,
+    minRerankScore: cfg.minRerankScore,
+  });
 }
 // a ToolSet-be: searchKnowledge: buildSearchKnowledge(liveAnswer)
 ```
+
 `packages/core/package.json` deps közé: `"@plantbase/rag": "workspace:*"`, majd `nvm use 22 && pnpm install`.
 
 - [ ] **Step 5: System prompt kiegészítés**
 
 `system-prompt.ts` `<tools>` és `<behavior>` blokkjába:
+
 ```
 - searchKnowledge(query): növénygondozási TUDÁS-kérdésre (hogyan/miért/tünetek) keres a tudásbázis-cikkekben.
   Katalógus-kérdésnél (ár, készlet, méret) továbbra is runSql. Tudás-kérdésnél MINDIG ezt hívd.
@@ -1289,11 +1699,13 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 10: Golden-set runner + CLI parancsok (`rag:index`, `rag:golden`)
 
 **Files:**
+
 - Create: `packages/rag/src/lib/golden.ts`, `golden.spec.ts`
 - Modify: `apps/cli/src/main.ts` (`rag:index`, `rag:golden` parancsok)
 - Create: `docs/RAG/GOLDEN-SET.md` (sablon, a runner tölti ki)
 
 **Interfaces:**
+
 - Consumes: `retrieve` (Task 7), `answerFromKnowledge` (Task 8), `ingestDocs` (Task 6).
 - Produces:
   - `const GOLDEN_QUESTIONS: { id: number; q: string; note: string }[]` (8 kérdés a spec 9. táblájából)
@@ -1312,15 +1724,33 @@ import type { StoredChunk } from './store.js';
 describe('golden', () => {
   it('legalább 8 kérdés, van megválaszolhatatlan (Vénusz légycsapó)', () => {
     expect(GOLDEN_QUESTIONS.length).toBeGreaterThanOrEqual(8);
-    expect(GOLDEN_QUESTIONS.some((q) => /légycsapó|flytrap/i.test(q.q))).toBe(true);
+    expect(GOLDEN_QUESTIONS.some((q) => /légycsapó|flytrap/i.test(q.q))).toBe(
+      true,
+    );
   });
   it('runGolden minden kérdésre ad raw+full sort, és markdownt renderel', async () => {
-    const store = new InMemoryStore(); const p = new FakeProviders();
+    const store = new InMemoryStore();
+    const p = new FakeProviders();
     const [emb] = await p.embed(['snake plant water light']);
-    const c: StoredChunk = { docId: 'snake', title: 'Snake', source: 's/snake', category: 'c', headingPath: '',
-      chunkIndex: 0, content: 'snake plant water light', tokenCount: 1, embedding: emb, embedModel: 'fake', relatedDocs: [], contentHash: 'h' };
+    const c: StoredChunk = {
+      docId: 'snake',
+      title: 'Snake',
+      source: 's/snake',
+      category: 'c',
+      headingPath: '',
+      chunkIndex: 0,
+      content: 'snake plant water light',
+      tokenCount: 1,
+      embedding: emb,
+      embedModel: 'fake',
+      relatedDocs: [],
+      contentHash: 'h',
+    };
     await store.upsertDoc('snake', [c]);
-    const rep = await runGolden({ providers: p, store }, { topN: 5, topK: 3, minRerankScore: 0.05 });
+    const rep = await runGolden(
+      { providers: p, store },
+      { topN: 5, topK: 3, minRerankScore: 0.05 },
+    );
     expect(rep.rows.length).toBe(GOLDEN_QUESTIONS.length);
     expect(renderGoldenMarkdown(rep)).toMatch(/raw|full/i);
   });
@@ -1336,21 +1766,53 @@ import type { Providers } from './providers.js';
 import type { Store } from './store.js';
 
 export const GOLDEN_QUESTIONS = [
-  { id: 1, q: 'Milyen fényt igényel a Monstera deliciosa?', note: 'answerable' },
-  { id: 2, q: 'Milyen gyakran öntözzem a kígyónövényt (snake plant)?', note: 'answerable' },
+  {
+    id: 1,
+    q: 'Milyen fényt igényel a Monstera deliciosa?',
+    note: 'answerable',
+  },
+  {
+    id: 2,
+    q: 'Milyen gyakran öntözzem a kígyónövényt (snake plant)?',
+    note: 'answerable',
+  },
   { id: 3, q: 'Hogyan szaporítsak pothost dugványról?', note: 'answerable' },
   { id: 4, q: 'Miért sárgulnak a növényem levelei?', note: 'answerable' },
-  { id: 5, q: 'Hogyan szabaduljak meg a gombaszúnyogoktól?', note: 'answerable' },
-  { id: 6, q: 'Miért lyukasak a Monstera / swiss cheese növény levelei?', note: 'rerank-átrendezés jelölt' },
-  { id: 7, q: 'Melyik szobanövény biztonságos macskák mellé?', note: 'answerable' },
-  { id: 8, q: 'Hogyan gondozzam a húsevő Vénusz légycsapót?', note: 'MEGVÁLASZOLHATATLAN — grounding próba' },
+  {
+    id: 5,
+    q: 'Hogyan szabaduljak meg a gombaszúnyogoktól?',
+    note: 'answerable',
+  },
+  {
+    id: 6,
+    q: 'Miért lyukasak a Monstera / swiss cheese növény levelei?',
+    note: 'rerank-átrendezés jelölt',
+  },
+  {
+    id: 7,
+    q: 'Melyik szobanövény biztonságos macskák mellé?',
+    note: 'answerable',
+  },
+  {
+    id: 8,
+    q: 'Hogyan gondozzam a húsevő Vénusz légycsapót?',
+    note: 'MEGVÁLASZOLHATATLAN — grounding próba',
+  },
 ] as const;
 
 export interface GoldenRow {
-  id: number; q: string; note: string;
-  raw: RetrievedChunk[]; full: RetrievedChunk[]; grounded: boolean; answer: string;
+  id: number;
+  q: string;
+  note: string;
+  raw: RetrievedChunk[];
+  full: RetrievedChunk[];
+  grounded: boolean;
+  answer: string;
 }
-export interface GoldenReport { rows: GoldenRow[]; cfg: { topN: number; topK: number; minRerankScore: number } }
+export interface GoldenReport {
+  rows: GoldenRow[];
+  cfg: { topN: number; topK: number; minRerankScore: number };
+}
 
 export async function runGolden(
   deps: { providers: Providers; store: Store },
@@ -1358,24 +1820,57 @@ export async function runGolden(
 ): Promise<GoldenReport> {
   const rows: GoldenRow[] = [];
   for (const { id, q, note } of GOLDEN_QUESTIONS) {
-    const raw = await retrieve(q, deps, { mode: 'raw', topN: cfg.topN, topK: cfg.topK });
-    const full = await retrieve(q, deps, { mode: 'full', topN: cfg.topN, topK: cfg.topK });
+    const raw = await retrieve(q, deps, {
+      mode: 'raw',
+      topN: cfg.topN,
+      topK: cfg.topK,
+    });
+    const full = await retrieve(q, deps, {
+      mode: 'full',
+      topN: cfg.topN,
+      topK: cfg.topK,
+    });
     const grounded = await answerFromKnowledge(q, deps, cfg);
-    rows.push({ id, q, note, raw, full, grounded: grounded.grounded, answer: grounded.answer });
+    rows.push({
+      id,
+      q,
+      note,
+      raw,
+      full,
+      grounded: grounded.grounded,
+      answer: grounded.answer,
+    });
   }
   return { rows, cfg };
 }
 
 const rankList = (cs: RetrievedChunk[]) =>
-  cs.map((c, i) => `${i + 1}. ${c.docId}${c.rerankScore !== undefined ? ` (rr=${c.rerankScore.toFixed(3)})` : ` (d=${c.distance.toFixed(3)})`}`).join('<br>');
+  cs
+    .map(
+      (c, i) =>
+        `${i + 1}. ${c.docId}${c.rerankScore !== undefined ? ` (rr=${c.rerankScore.toFixed(3)})` : ` (d=${c.distance.toFixed(3)})`}`,
+    )
+    .join('<br>');
 
 export function renderGoldenMarkdown(report: GoldenReport): string {
-  const head = `# Golden Set — raw vs full pipeline\n\n` +
+  const head =
+    `# Golden Set — raw vs full pipeline\n\n` +
     `Konfiguráció: topN=${report.cfg.topN}, topK=${report.cfg.topK}, minRerankScore=${report.cfg.minRerankScore}\n\n` +
     `| # | Kérdés | Raw (embedding) | Full (HyDE+rerank) | Grounded |\n|---|---|---|---|---|\n`;
-  const body = report.rows.map((r) =>
-    `| ${r.id} | ${r.q} | ${rankList(r.raw)} | ${rankList(r.full)} | ${r.grounded ? 'igen' : 'NINCS'} |`).join('\n');
-  const notes = `\n\n## Megjegyzések\n` + report.rows.map((r) => `- **#${r.id}** (${r.note}): ${r.answer.replace(/\n/g, ' ').slice(0, 200)}`).join('\n');
+  const body = report.rows
+    .map(
+      (r) =>
+        `| ${r.id} | ${r.q} | ${rankList(r.raw)} | ${rankList(r.full)} | ${r.grounded ? 'igen' : 'NINCS'} |`,
+    )
+    .join('\n');
+  const notes =
+    `\n\n## Megjegyzések\n` +
+    report.rows
+      .map(
+        (r) =>
+          `- **#${r.id}** (${r.note}): ${r.answer.replace(/\n/g, ' ').slice(0, 200)}`,
+      )
+      .join('\n');
   return head + body + notes;
 }
 ```
@@ -1383,6 +1878,7 @@ export function renderGoldenMarkdown(report: GoldenReport): string {
 - [ ] **Step 4: CLI parancsok `apps/cli/src/main.ts`-ben**
 
 Adj két parancsot (a meglévő CLI-argument minta szerint):
+
 - `rag:index` → beolvassa `docs/knowledge/*.md`-t (`fs.readdirSync`), `docId = fájlnév .md nélkül`, felépíti az éles `createProviders(loadRagConfig())` + `PgStore(new Pool({connectionString: DATABASE_URL}))` (RW!) deps-et, `ingestDocs(...)`, kiírja az `IngestResult`-ot.
 - `rag:golden` → RO Pool + éles providerek, `runGolden(...)`, majd `fs.writeFileSync('docs/RAG/GOLDEN-SET.md', renderGoldenMarkdown(report))`.
 
@@ -1401,6 +1897,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 11: `docs/RAG/ARCHITEKTURA.md` (inkrementális frissítés — csak terv)
 
 **Files:**
+
 - Create: `docs/RAG/ARCHITEKTURA.md`
 
 - [ ] **Step 1: Dokumentum megírása** — a spec 11. szakasza alapján, kifejtve:

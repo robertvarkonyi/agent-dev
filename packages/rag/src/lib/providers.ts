@@ -1,6 +1,6 @@
 import type { RagConfig } from './config.js';
 import { embedFromOpenAI } from './openai-embeddings.js';
-import { rerankFromCohere } from './cohere-rerank.js';
+import { rerankFromJina } from './jina-rerank.js';
 import { hydeFromAnthropic, answerFromAnthropic } from './anthropic-gen.js';
 
 export interface RerankHit {
@@ -57,7 +57,7 @@ export function createProviders(cfg: RagConfig): Providers {
   return {
     embed: (texts) => embedFromOpenAI(cfg, texts),
     hyde: (query) => hydeFromAnthropic(cfg, query),
-    rerank: (query, docs, topN) => rerankFromCohere(cfg, query, docs, topN),
+    rerank: (query, docs, topN) => rerankFromJina(cfg, query, docs, topN),
     answer: (system, prompt) => answerFromAnthropic(cfg, system, prompt),
   };
 }
