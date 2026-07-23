@@ -215,6 +215,35 @@ de a **2. opció** is elfogadható átmeneti megoldás, amíg a knowledge-bázis
 
 ---
 
+## Cross-reference (`related_docs`) query-időben [TERV]
+
+A chunkolás **már ma is** kinyeri és feloldja a cikkek közti `### Learn More` cross-refeket:
+`extractRelated(doc.body)` kiszedi a hivatkozott címeket, `resolveRelated(...)` a korpusz
+frontmatter-címeire fuzzy-matcheli őket doc_id-kra, és az `ingestDocs` a `related_docs` (text[])
+oszlopba írja minden chunk-sornál (`packages/rag/src/lib/store.ts`, `PgStore.upsertDoc`).
+**[MEGVALÓSÍTVA]** — a chunkolás tehát a feladat kiírása szerint „figyelembe veszi a
+cross-referenceket".
+
+Amit v1-ben **szándékosan NEM csinálunk** (a spec „no second-hop retrieval" döntése szerint):
+a tárolt `related_docs`-ot **query-időben nem olvassuk vissza**. A `SearchHit` nem tartalmazza,
+a `similaritySearch` nem `SELECT`-eli, és sem a `retrieve`, sem az `answer` nem használja — vagyis
+ma pontosan olyan **write-only** metaadat, mint az `embed_model`. Ez tudatos v1-scope, nem
+felejtés: a kontextus-megőrző chunkolás (cím + heading-path prefix) már így is önmagában grounded
+chunkokat ad, a testvér-doksi bővítés opcionális továbblépés.
+
+**Jövőbeli felhasználás (TERV):**
+
+1. **Retrieval-bővítés:** a top-K találat `related_docs`-aiból behúzni 1-2 testvér-chunkot a rerank
+   elé (második kör), hogy a „lásd még a citrus-metszés cikket" típusú kapcsolatok is bekerüljenek
+   a kontextusba. Ehhez a `similaritySearch`-nek vissza kell adnia a `related_docs`-ot (a `SearchHit`
+   bővítése), és a `retrieve` full-módjába egy opcionális expand-lépés kell.
+2. **Grounding-hivatkozás:** a válasz forrás-listájában megjeleníteni a kapcsolódó cikk-családot is.
+
+Mindkettő additív, a meglévő pipeline-t nem töri; a tárolt `related_docs` miatt újraindexelés
+nélkül bevezethető.
+
+---
+
 ## Ismert edge case: doksi 0 chunkra szerkesztve (nem törölve) [TERV — javítandó]
 
 A Task 6 code review-ban azonosított hiányosság, ami a jelenlegi `ingestDocs`-ban **ma is
@@ -262,15 +291,17 @@ tartalma ürült ki nullára.
 
 ## Összefoglaló: mag vs. terv
 
-| Rész                                                          | Státusz                   | Hol                                                              |
-| ------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------- |
-| Tartalom-hash számítás (`hashBody`)                           | MEGVALÓSÍTVA              | `packages/rag/src/lib/ingest.ts`                                 |
-| Hash-alapú skip (változatlan doksi nem embeddelődik újra)     | MEGVALÓSÍTVA              | `ingestDocs`, `ingest.ts`                                        |
-| Új dokumentum indexelése                                      | MEGVALÓSÍTVA              | `ingestDocs`, `ingest.ts`                                        |
-| Törölt dokumentum (fájl eltűnt) reconcile + törlés            | MEGVALÓSÍTVA              | `ingestDocs` + `PgStore.deleteByDocId`, `ingest.ts` / `store.ts` |
-| Módosult dokumentum (atomi csere)                             | MEGVALÓSÍTVA              | `PgStore.upsertDoc` (DELETE+INSERT tranzakcióban), `store.ts`    |
-| Manuális reindex-belépési pont                                | MEGVALÓSÍTVA              | `pnpm cli rag:index`, `apps/cli/src/main.ts`                     |
-| Git-hook / CI trigger `docs/knowledge/**`-re                  | TERV                      | —                                                                |
-| Cron / fájl-watch trigger                                     | TERV (alacsony prioritás) | —                                                                |
-| Modell-verziózás (`embed_model` alapú kényszerített re-embed) | TERV                      | `embed_model` oszlop már létezik, de nincs kiolvasva/összevetve  |
-| "0 chunkra ürült, meglévő doksi" törlés-javítás               | TERV — ismert hiba        | `ingestDocs`, `chunks.length === 0` ág                           |
+| Rész                                                          | Státusz                   | Hol                                                                    |
+| ------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------- |
+| Tartalom-hash számítás (`hashBody`)                           | MEGVALÓSÍTVA              | `packages/rag/src/lib/ingest.ts`                                       |
+| Hash-alapú skip (változatlan doksi nem embeddelődik újra)     | MEGVALÓSÍTVA              | `ingestDocs`, `ingest.ts`                                              |
+| Új dokumentum indexelése                                      | MEGVALÓSÍTVA              | `ingestDocs`, `ingest.ts`                                              |
+| Törölt dokumentum (fájl eltűnt) reconcile + törlés            | MEGVALÓSÍTVA              | `ingestDocs` + `PgStore.deleteByDocId`, `ingest.ts` / `store.ts`       |
+| Módosult dokumentum (atomi csere)                             | MEGVALÓSÍTVA              | `PgStore.upsertDoc` (DELETE+INSERT tranzakcióban), `store.ts`          |
+| Manuális reindex-belépési pont                                | MEGVALÓSÍTVA              | `pnpm cli rag:index`, `apps/cli/src/main.ts`                           |
+| Cross-ref kinyerés + tárolás (`related_docs`)                 | MEGVALÓSÍTVA              | `extractRelated`/`resolveRelated`, `ingestDocs`; `related_docs` oszlop |
+| Cross-ref query-idejű felhasználás (testvér-doksi bővítés)    | TERV                      | tárolva, de `similaritySearch`/`retrieve` nem olvassa (write-only)     |
+| Git-hook / CI trigger `docs/knowledge/**`-re                  | TERV                      | —                                                                      |
+| Cron / fájl-watch trigger                                     | TERV (alacsony prioritás) | —                                                                      |
+| Modell-verziózás (`embed_model` alapú kényszerített re-embed) | TERV                      | `embed_model` oszlop már létezik, de nincs kiolvasva/összevetve        |
+| "0 chunkra ürült, meglévő doksi" törlés-javítás               | TERV — ismert hiba        | `ingestDocs`, `chunks.length === 0` ág                                 |

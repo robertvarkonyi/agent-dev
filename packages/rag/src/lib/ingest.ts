@@ -42,6 +42,9 @@ export async function ingestDocs(
       skipped++;
       continue;
     }
+    // A "Learn More" cross-refeket feloldjuk és eltároljuk (related_docs oszlop), de v1-ben
+    // query-időben MÉG NEM olvassuk vissza (mint az embed_model) — lásd docs/RAG/ARCHITEKTURA.md
+    // "related_docs [TERV]" szekció: jövőbeli testvér-doksi bővítés / cikk-család hivatkozás.
     const relatedDocs = resolveRelated(extractRelated(doc.body), titleToDocId);
     const chunks = chunkDoc(doc);
     if (chunks.length === 0) {
