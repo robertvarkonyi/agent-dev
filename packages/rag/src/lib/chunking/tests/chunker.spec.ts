@@ -57,6 +57,7 @@ describe('stripBoilerplate', () => {
   it('kivágja a "Shop ...!" upsell sorokat', () => {
     const body =
       '## Light\nBright light is best.\n\nShop Monstera Deliciosa!\n\nWater weekly.';
+
     const s = stripBoilerplate(body);
     expect(s).not.toMatch(/Shop Monstera Deliciosa/);
     expect(s).toMatch(/Bright light is best/);
@@ -74,6 +75,7 @@ describe('extractRelated + resolveRelated', () => {
     const map = new Map([
       ['how to care for a snake plant', 'plants-101__snake'],
     ]);
+
     expect(resolveRelated(titles, map)).toEqual(['plants-101__snake']); // ismeretlent kihagy
   });
   it('üres, ha nincs Learn More', () => {
@@ -86,6 +88,7 @@ describe('chunkDoc', () => {
   it('heading-path prefixet tesz minden chunk elé', () => {
     const chunks = chunkDoc(doc);
     expect(chunks.length).toBeGreaterThan(0);
+
     for (const c of chunks) {
       expect(c.content.startsWith(`${doc.title} — `)).toBe(true);
       expect(c.tokenCount).toBeGreaterThan(0);
@@ -108,10 +111,13 @@ describe('chunkDoc', () => {
         ).join('\n\n'),
       'big',
     );
+
     const chunks = chunkDoc(big, { maxChars: 400 });
     expect(chunks.length).toBeGreaterThan(1);
-    for (const c of chunks)
-      expect(c.content.length).toBeLessThanOrEqual(400 + 200); // prefix + overlap tolerancia
+
+    for (const c of chunks) {
+      expect(c.content.length).toBeLessThanOrEqual(400 + 200);
+    } // prefix + overlap tolerancia
   });
   it('üres törzs → nincs chunk', () => {
     expect(
@@ -125,13 +131,16 @@ describe('chunkDoc', () => {
       (_, i) =>
         `This is sentence number ${i} carrying some filler words for length.`,
     ).join(' ');
+
     expect(para.length).toBeGreaterThan(4000);
     const big = parseDoc(
       `---\ntitle: Big One\nsource: s\ncategory: c\n---\n## Section\n${para}`,
       'big-one',
     );
+
     const chunks = chunkDoc(big, { maxChars: 800 });
     expect(chunks.length).toBeGreaterThan(1);
+
     for (const c of chunks) {
       expect(bodyOf(c).length).toBeLessThanOrEqual(800); // törzs (prefix nélkül) ≤ maxChars
     }
@@ -141,12 +150,15 @@ describe('chunkDoc', () => {
       { length: 8 },
       (_, i) => `Bekezdes szam ${i} tartalommal.`,
     );
+
     const d = parseDoc(
       `---\ntitle: O\nsource: s\ncategory: c\n---\n## S\n${paras.join('\n\n')}`,
       'ovl',
     );
+
     const chunks = chunkDoc(d, { maxChars: 90 });
     expect(chunks.length).toBeGreaterThan(1);
+
     for (let i = 0; i < chunks.length - 1; i++) {
       const cur = bodyOf(chunks[i]).split('\n\n');
       const lastPara = cur[cur.length - 1];
@@ -159,6 +171,7 @@ describe('chunkDoc', () => {
         `## A\nintro\n### B\nmore\n#### C\nDeepest content here.`,
       'deep',
     );
+
     const chunks = chunkDoc(nested);
     const deepest = chunks.find((c) => c.headingPath.includes('C'));
     expect(deepest).toBeTruthy();

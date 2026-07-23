@@ -15,11 +15,13 @@ const baseEntry = {
 describe('logInteraction', () => {
   it('JSONL fájlba írja az interakciót (system, üzenetek, válasz, token)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'plantbase-log-'));
+
     try {
       const file = logInteraction(
         { ...baseEntry, timestamp: '2026-07-01T10:00:00.000Z' },
         dir,
       );
+
       const parsed = JSON.parse(readFileSync(file, 'utf8').trim());
 
       expect(parsed.system).toBe('sysprompt');
@@ -34,11 +36,13 @@ describe('logInteraction', () => {
 
   it('append-only: azonos nap interakcióit ugyanabba a fájlba, soronként fűzi', () => {
     const dir = mkdtempSync(join(tmpdir(), 'plantbase-log-'));
+
     try {
       const file1 = logInteraction(
         { ...baseEntry, timestamp: '2026-07-01T10:00:00.000Z' },
         dir,
       );
+
       const file2 = logInteraction(
         { ...baseEntry, timestamp: '2026-07-01T11:30:00.000Z' },
         dir,

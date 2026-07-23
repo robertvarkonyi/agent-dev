@@ -47,6 +47,7 @@ async function main(): Promise<void> {
   for (const c of golden.cases) {
     process.stdout.write(`[eval] ${c.id} … `);
     const started = Date.now();
+
     try {
       const { answer, usage } = await askAgent(c.question);
       results.push({

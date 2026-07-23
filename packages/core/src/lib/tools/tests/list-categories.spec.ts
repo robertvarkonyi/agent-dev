@@ -8,6 +8,7 @@ describe('extractCategories', () => {
       { category: 'pozsgás' },
       { category: 'szobanövény' },
     ];
+
     expect(extractCategories(rows)).toEqual([
       'kaktusz',
       'pozsgás',
@@ -21,6 +22,7 @@ describe('extractCategories', () => {
       { category: 'kaktusz' },
       { category: 'fűszer' },
     ];
+
     expect(extractCategories(rows)).toEqual(['kaktusz', 'fűszer']);
   });
 
@@ -32,6 +34,7 @@ describe('extractCategories', () => {
       { category: 42 },
       { category: '' },
     ];
+
     expect(extractCategories(rows)).toEqual(['kaktusz']);
   });
 

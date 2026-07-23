@@ -1,4 +1,5 @@
 import type { ParsedDoc } from './markdown.js';
+
 export { parseDoc, type ParsedDoc } from './markdown.js';
 
 export interface Chunk {
@@ -24,6 +25,7 @@ export function stripBoilerplate(body: string): string {
     '',
   );
   out = out.replace(/^\s*Shop .*!\s*$/gim, '');
+
   return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -31,7 +33,11 @@ export function extractRelated(body: string): string[] {
   const block = body.match(
     /^#{1,6}\s*Learn More\s*\n([\s\S]*?)(?=^#{1,6}\s|(?![\s\S]))/im,
   );
-  if (!block) return [];
+
+  if (!block) {
+    return [];
+  }
+
   return block[1]
     .split('\n')
     .map((l) => l.replace(/^\s*[*-]\s*/, '').trim())
@@ -43,10 +49,15 @@ export function resolveRelated(
   titleToDocId: Map<string, string>,
 ): string[] {
   const out: string[] = [];
+
   for (const t of titles) {
     const id = titleToDocId.get(t.toLowerCase().trim());
-    if (id) out.push(id);
+
+    if (id) {
+      out.push(id);
+    }
   }
+
   return out;
 }
 
@@ -62,24 +73,36 @@ function splitSections(body: string): Section[] {
   const sections: Section[] = [];
   let buf: string[] = [];
   const path = () => stack.map((s) => s.title).join(' > ');
+
   const flush = () => {
     const text = buf.join('\n').trim();
-    if (text) sections.push({ headingPath: path(), text });
+
+    if (text) {
+      sections.push({ headingPath: path(), text });
+    }
+
     buf = [];
   };
+
   for (const line of lines) {
     const h = line.match(/^(#{1,6})\s+(.*)$/);
+
     if (h) {
       flush();
       const level = h[1].length;
-      while (stack.length && stack[stack.length - 1].level >= level)
+
+      while (stack.length && stack[stack.length - 1].level >= level) {
         stack.pop();
+      }
+
       stack.push({ level, title: h[2].trim() });
     } else {
       buf.push(line);
     }
   }
+
   flush();
+
   return sections;
 }
 
@@ -87,23 +110,33 @@ function splitSections(body: string): Section[] {
 // határon (`.!?` után), és ha egy mondat maga is túl hosszú, kemény maxChars-
 // széles ablakokra szeletel. A normál (≤maxChars) bekezdést változatlanul adja.
 function splitParagraph(p: string, maxChars: number): string[] {
-  if (p.length <= maxChars) return [p];
+  if (p.length <= maxChars) {
+    return [p];
+  }
+
   const out: string[] = [];
   let buf = '';
+
   const flush = () => {
     if (buf) {
       out.push(buf);
       buf = '';
     }
   };
+
   for (const s of p.split(/(?<=[.!?])\s+/)) {
     if (s.length > maxChars) {
       flush();
-      for (let i = 0; i < s.length; i += maxChars)
+
+      for (let i = 0; i < s.length; i += maxChars) {
         out.push(s.slice(i, i + maxChars));
+      }
+
       continue;
     }
+
     const candidate = buf ? `${buf} ${s}` : s;
+
     if (candidate.length > maxChars) {
       flush();
       buf = s;
@@ -111,7 +144,9 @@ function splitParagraph(p: string, maxChars: number): string[] {
       buf = candidate;
     }
   }
+
   flush();
+
   return out;
 }
 
@@ -127,16 +162,26 @@ export function chunkDoc(
   const sections = splitSections(clean);
   const chunks: Chunk[] = [];
   let index = 0;
+
   const push = (rawHeadingPath: string, text: string) => {
     const body = text.trim();
-    if (!body) return;
+
+    if (!body) {
+      return;
+    }
+
     // headingPath dedup: a doc.title-lel egyező vezető szegmenst eldobjuk
     // (különben "Title — Title > Szekció" lenne a prefix).
     const segs = rawHeadingPath.split(' > ');
-    if (segs[0] === doc.title) segs.shift();
+
+    if (segs[0] === doc.title) {
+      segs.shift();
+    }
+
     const headingPath = segs.join(' > ');
     const prefix = `${doc.title}${headingPath ? ` — ${headingPath}` : ''}\n\n`;
     const content = prefix + body;
+
     chunks.push({
       docId: doc.docId,
       title: doc.title,
@@ -148,15 +193,19 @@ export function chunkDoc(
       tokenCount: estimateTokens(content),
     });
   };
+
   for (const sec of sections) {
     const paras = sec.text
       .split(/\n{2,}/)
       .map((p) => p.trim())
       .filter(Boolean)
       .flatMap((p) => splitParagraph(p, maxChars));
+
     let buf: string[] = [];
+
     for (const p of paras) {
       const candidate = buf.length ? `${buf.join('\n\n')}\n\n${p}` : p;
+
       if (buf.length && candidate.length > maxChars) {
         push(sec.headingPath, buf.join('\n\n'));
         const overlap = buf[buf.length - 1] ?? '';
@@ -166,7 +215,11 @@ export function chunkDoc(
         buf.push(p);
       }
     }
-    if (buf.join('').trim()) push(sec.headingPath, buf.join('\n\n'));
+
+    if (buf.join('').trim()) {
+      push(sec.headingPath, buf.join('\n\n'));
+    }
   }
+
   return chunks;
 }

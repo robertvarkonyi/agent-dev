@@ -29,7 +29,9 @@ export async function hydeFromAnthropic(
     system: HYDE_SYSTEM,
     prompt: query,
   });
+
   tracker?.add('anthropic', cfg.hydeModel, totalTokens(usage));
+
   return text;
 }
 
@@ -45,6 +47,8 @@ export async function answerFromAnthropic(
     system,
     prompt,
   });
+
   tracker?.add('anthropic', cfg.answerModel, totalTokens(usage));
+
   return text;
 }

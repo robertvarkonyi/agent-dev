@@ -13,6 +13,8 @@ export async function embedFromOpenAI(
     model: openai.embedding(cfg.embedModel),
     values: texts,
   });
+
   tracker?.add('openai', cfg.embedModel, usage?.tokens ?? 0);
+
   return embeddings;
 }

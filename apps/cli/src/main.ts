@@ -44,6 +44,7 @@ async function answer(input: string, showPrompt: boolean): Promise<void> {
     if (showPrompt) {
       console.log(formatPrompt(buildPrompt(input)));
     }
+
     const { answer: text } = await askAgent(input);
     console.log(text);
   } catch (error) {
@@ -69,17 +70,21 @@ function runInteractive(showPrompt: boolean): void {
   // Egy forduló feldolgozása: a next-et FUTÁSKOR építjük a friss history-ból.
   async function processTurn(text: string): Promise<void> {
     const next: ChatMessage[] = [...history, { role: 'user', content: text }];
+
     if (showPrompt) {
       console.log(formatPrompt({ system: SYSTEM_PROMPT, messages: next }));
     }
+
     try {
       const { textStream, done } = streamChat(next);
       // A done sosem maradhat kezeletlen: stream-hiba esetén a for-await a catch-be ugrik,
       // mielőtt az await done lefutna, és a done elutasítása Node-on process-crasht okozna.
       done.catch(() => undefined);
+
       for await (const chunk of textStream) {
         process.stdout.write(chunk);
       }
+
       process.stdout.write('\n');
       const { messages } = await done;
       history.splice(0, history.length, ...messages);
@@ -88,6 +93,7 @@ function runInteractive(showPrompt: boolean): void {
         `Hiba: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+
     rl.prompt();
   }
 
@@ -96,14 +102,19 @@ function runInteractive(showPrompt: boolean): void {
 
   rl.on('line', (line) => {
     const text = line.trim();
+
     if (text === 'exit' || text === 'quit') {
       rl.close();
+
       return;
     }
+
     if (text.length === 0) {
       rl.prompt();
+
       return;
     }
+
     // Sorba fűzzük; a processTurn hívja a rl.prompt()-ot a végén.
     chain = chain.then(() => processTurn(text));
   });
@@ -122,14 +133,18 @@ const GOLDEN_SET_PATH = 'docs/RAG/GOLDEN-SET.md';
 function printUsage(usage: ProviderUsage[], total: number): void {
   if (usage.length === 0) {
     console.log('Token-fogyasztás: nincs (nem történt provider-hívás).');
+
     return;
   }
+
   console.log('Token-fogyasztás providerenként:');
+
   for (const u of usage) {
     console.log(
       `  ${u.provider} (${u.model}): ${u.tokens.toLocaleString('hu-HU')} token, ${u.calls} hívás`,
     );
   }
+
   console.log(`  Összesen: ${total.toLocaleString('hu-HU')} token`);
 }
 
@@ -138,14 +153,17 @@ function printUsage(usage: ProviderUsage[], total: number): void {
 // nem az agent útvonala, hanem operátori CLI-parancs.
 async function ragIndex(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
+
   if (!connectionString) {
     throw new Error(
       'Hiányzik a DATABASE_URL. Állítsd be a .env-ben (a rag:index írási jogosultságot igényel).',
     );
   }
+
   const cfg = loadRagConfig();
   const pool = new Pool({ connectionString });
   const usage = new UsageTracker();
+
   try {
     const files = readdirSync(KNOWLEDGE_DIR)
       .filter((name) => name.endsWith('.md'))
@@ -153,26 +171,33 @@ async function ragIndex(): Promise<void> {
         docId: name.slice(0, -3),
         raw: readFileSync(join(KNOWLEDGE_DIR, name), 'utf8'),
       }));
+
     console.log(
       `Indexelés indul: ${files.length} dokumentum a(z) ${KNOWLEDGE_DIR}/ mappából (modell: ${cfg.embedModel})…`,
     );
+
     const onProgress = (e: IngestProgress): void => {
       if (e.type === 'deleted') {
         console.log(`  törölve (már nincs fájl): ${e.docId}`);
+
         return;
       }
+
       const status =
         e.action === 'indexed'
           ? `indexelve (${e.chunks} chunk)`
           : 'változatlan (kihagyva)';
+
       console.log(`  [${e.index}/${e.total}] ${e.docId} — ${status}`);
     };
+
     const deps = {
       providers: createProviders(cfg, usage),
       store: new PgStore(pool),
       embedModel: cfg.embedModel,
       onProgress,
     };
+
     const result = await ingestDocs(files, deps);
     console.log(
       `\nKész. Indexelve: ${result.indexed}, kihagyva (nincs változás): ${result.skipped}, törölve (már nincs fájl): ${result.deleted}`,
@@ -187,25 +212,30 @@ async function ragIndex(): Promise<void> {
 // Csak OLVAS, ezért RO pool (DATABASE_URL_READONLY) kell.
 async function ragGolden(): Promise<void> {
   const connectionString = process.env.DATABASE_URL_READONLY;
+
   if (!connectionString) {
     throw new Error(
       'Hiányzik a DATABASE_URL_READONLY. Állítsd be a .env-ben (a rag:golden csak olvas).',
     );
   }
+
   const cfg = loadRagConfig();
   const pool = new Pool({ connectionString });
   const usage = new UsageTracker();
+
   try {
     const deps = {
       providers: createProviders(cfg, usage),
       store: new PgStore(pool),
     };
+
     console.log(`Golden-set futtatása (raw vs full)…`);
     const report = await runGolden(deps, {
       topN: cfg.topN,
       topK: cfg.topK,
       minRerankScore: cfg.minRerankScore,
     });
+
     writeFileSync(GOLDEN_SET_PATH, renderGoldenMarkdown(report));
     console.log(
       `Kész: ${GOLDEN_SET_PATH} frissítve (${report.rows.length} kérdés).`,

@@ -22,6 +22,7 @@ export function buildGroundingPrompt(
   const ctx = chunks
     .map((c, i) => `[${i + 1}] Forrás: ${c.title} — ${c.source}\n${c.content}`)
     .join('\n\n---\n\n');
+
   return `Kérdés: ${query}\n\nKontextus:\n${ctx}`;
 }
 
@@ -35,16 +36,22 @@ export async function answerFromKnowledge(
     topN: opts.topN,
     topK: opts.topK,
   });
+
   const best = chunks[0]?.rerankScore ?? 0;
-  if (chunks.length === 0 || best < opts.minRerankScore)
+
+  if (chunks.length === 0 || best < opts.minRerankScore) {
     return { answer: NO_ANSWER, grounded: false, sources: [] };
+  }
+
   const answer = await deps.providers.answer(
     ANSWER_SYSTEM,
     buildGroundingPrompt(query, chunks),
   );
+
   const seen = new Set<string>();
   const sources = chunks
     .filter((c) => !seen.has(c.source) && seen.add(c.source))
     .map((c) => ({ title: c.title, source: c.source }));
+
   return { answer, grounded: true, sources };
 }

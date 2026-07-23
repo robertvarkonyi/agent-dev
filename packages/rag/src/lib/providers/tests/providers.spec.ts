@@ -14,6 +14,7 @@ describe('FakeProviders', () => {
       ['about fertilizer schedules', 'snake plant needs bright light'],
       2,
     );
+
     expect(hits[0].index).toBe(1);
     expect(hits[0].score).toBeGreaterThanOrEqual(hits[1].score);
   });

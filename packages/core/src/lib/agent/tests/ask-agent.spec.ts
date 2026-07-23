@@ -20,6 +20,7 @@ const generateTextMock = vi.fn();
 const streamTextMock = vi.fn();
 vi.mock('ai', async (importOriginal) => {
   const actual = await importOriginal<typeof import('ai')>();
+
   return {
     ...actual,
     generateText: (...a: unknown[]) => generateTextMock(...a),
@@ -82,12 +83,15 @@ describe('askAgent', () => {
     // A stubolt generateText lefuttatja a runSql toolt, hogy a collector megteljen.
     generateTextMock.mockImplementation(
       async (opts: {
-        tools: ReturnType<typeof import('../../tools/agent-tools.js').buildTools>;
+        tools: ReturnType<
+          typeof import('../../tools/agent-tools.js').buildTools
+        >;
       }) => {
         await opts.tools.runSql.execute!({ query: 'SELECT * FROM products' }, {
           toolCallId: 't',
           messages: [],
         } as never);
+
         return {
           text: 'Egy termék.',
           usage: { inputTokens: 1, outputTokens: 1 },
@@ -105,6 +109,7 @@ describe('askAgent', () => {
       answer: string;
       messages: unknown[];
     };
+
     expect(entry.sql).toContain('SELECT * FROM products');
     expect(entry.answer).toBe('Egy termék.');
     // A naplózott messages-nek tartalmaznia kell a user kérdését is, nem csak az asszisztens
@@ -128,6 +133,7 @@ describe('streamChat', () => {
         yield 'Hel';
         yield 'ló';
       }
+
       return {
         textStream: gen(),
         text: Promise.resolve('Helló'),
@@ -145,7 +151,11 @@ describe('streamChat', () => {
     const { textStream, done } = streamChat(history, {} as never);
 
     let acc = '';
-    for await (const chunk of textStream) acc += chunk;
+
+    for await (const chunk of textStream) {
+      acc += chunk;
+    }
+
     expect(acc).toBe('Helló');
 
     const result = await done;

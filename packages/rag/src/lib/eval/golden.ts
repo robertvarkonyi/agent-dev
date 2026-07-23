@@ -57,17 +57,20 @@ export async function runGolden(
   cfg: { topN: number; topK: number; minRerankScore: number },
 ): Promise<GoldenReport> {
   const rows: GoldenRow[] = [];
+
   for (const { id, q, note } of GOLDEN_QUESTIONS) {
     const raw = await retrieve(q, deps, {
       mode: 'raw',
       topN: cfg.topN,
       topK: cfg.topK,
     });
+
     const full = await retrieve(q, deps, {
       mode: 'full',
       topN: cfg.topN,
       topK: cfg.topK,
     });
+
     const grounded = await answerFromKnowledge(q, deps, cfg);
     rows.push({
       id,
@@ -79,6 +82,7 @@ export async function runGolden(
       answer: grounded.answer,
     });
   }
+
   return { rows, cfg };
 }
 
@@ -95,12 +99,14 @@ export function renderGoldenMarkdown(report: GoldenReport): string {
     `# Golden Set — raw vs full pipeline\n\n` +
     `Konfiguráció: topN=${report.cfg.topN}, topK=${report.cfg.topK}, minRerankScore=${report.cfg.minRerankScore}\n\n` +
     `| # | Kérdés | Raw (embedding) | Full (HyDE+rerank) | Grounded |\n|---|---|---|---|---|\n`;
+
   const body = report.rows
     .map(
       (r) =>
         `| ${r.id} | ${r.q} | ${rankList(r.raw)} | ${rankList(r.full)} | ${r.grounded ? 'igen' : 'NINCS'} |`,
     )
     .join('\n');
+
   const notes =
     `\n\n## Megjegyzések\n` +
     report.rows
@@ -109,5 +115,6 @@ export function renderGoldenMarkdown(report: GoldenReport): string {
           `- **#${r.id}** (${r.note}): ${r.answer.replace(/\n/g, ' ').slice(0, 200)}`,
       )
       .join('\n');
+
   return head + body + notes;
 }

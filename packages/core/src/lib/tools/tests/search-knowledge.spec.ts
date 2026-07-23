@@ -8,6 +8,7 @@ describe('buildSearchKnowledge', () => {
       grounded: true,
       sources: [{ title: 'Snake', source: 's/snake' }],
     });
+
     const tool = buildSearchKnowledge(fakeAnswer as any);
     const out = await tool.execute!({ query: 'öntözés?' }, {} as any);
     expect(out).toMatchObject({ grounded: true });
@@ -19,6 +20,7 @@ describe('buildSearchKnowledge', () => {
       grounded: false,
       sources: [],
     });
+
     const tool = buildSearchKnowledge(fakeAnswer as any);
     const out = await tool.execute!({ query: 'x' }, {} as any);
     expect(out).toMatchObject({ grounded: false });
@@ -29,6 +31,7 @@ describe('buildSearchKnowledge', () => {
     const fakeAnswer = async () => {
       throw new Error('nincs OPENAI_API_KEY');
     };
+
     const tool = buildSearchKnowledge(fakeAnswer as any);
     const out = await tool.execute!({ query: 'x' }, {} as any);
     expect(typeof out).toBe('string');

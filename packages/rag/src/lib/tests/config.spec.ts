@@ -27,6 +27,7 @@ describe('loadRagConfig', () => {
       RAG_TOP_K: '8',
       RAG_MIN_RERANK_SCORE: '0.5',
     });
+
     expect(c.topK).toBe(8);
     expect(c.minRerankScore).toBe(0.5);
   });

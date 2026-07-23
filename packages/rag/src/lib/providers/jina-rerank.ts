@@ -11,7 +11,10 @@ export async function rerankFromJina(
   topN: number,
   tracker?: UsageTracker,
 ): Promise<RerankHit[]> {
-  if (docs.length === 0) return [];
+  if (docs.length === 0) {
+    return [];
+  }
+
   const res = await fetch('https://api.jina.ai/v1/rerank', {
     method: 'POST',
     headers: {
@@ -26,13 +29,18 @@ export async function rerankFromJina(
       return_documents: false,
     }),
   });
-  if (!res.ok)
+
+  if (!res.ok) {
     throw new Error(`Jina rerank hiba: ${res.status} ${await res.text()}`);
+  }
+
   const json = (await res.json()) as {
     results: { index: number; relevance_score: number }[];
     usage?: { total_tokens?: number };
   };
+
   tracker?.add('jina', cfg.rerankModel, json.usage?.total_tokens ?? 0);
+
   return json.results.map((r) => ({
     index: r.index,
     score: r.relevance_score,

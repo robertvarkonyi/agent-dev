@@ -12,6 +12,7 @@ export function parseDoc(raw: string, docId: string): ParsedDoc {
   const body = m ? m[2] : raw;
   const get = (k: string) =>
     (fm.match(new RegExp(`^${k}:\\s*(.*)$`, 'm'))?.[1] ?? '').trim();
+
   return {
     docId,
     title: get('title'),

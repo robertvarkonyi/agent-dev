@@ -12,11 +12,13 @@ describe('ingestDocs', () => {
       { docId: 'a', raw: FM('A', 'apple text') },
       { docId: 'b', raw: FM('B', 'banana text') },
     ];
+
     const deps = {
       providers: new FakeProviders(),
       store: new InMemoryStore(),
       embedModel: 'fake',
     };
+
     const r1 = await ingestDocs(files, deps);
     expect(r1.indexed).toBe(2);
     const r2 = await ingestDocs(files, deps);
@@ -47,10 +49,12 @@ describe('ingestDocs', () => {
       embedModel: 'fake',
       onProgress: (e: IngestProgress) => events.push(e),
     };
+
     const files = [
       { docId: 'a', raw: FM('A', 'apple') },
       { docId: 'b', raw: FM('B', 'banana') },
     ];
+
     await ingestDocs(files, deps);
     const docEvents = events.filter((e) => e.type === 'doc');
     expect(docEvents).toHaveLength(2);

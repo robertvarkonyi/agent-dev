@@ -33,9 +33,11 @@ export type ChatMessage = ModelMessage;
 // A kérdésből felépíti a system promptot + üzenet-tömböt (--show-prompt + askAgent).
 export function buildPrompt(input: unknown): Prompt {
   const result = QuestionSchema.safeParse(input);
+
   if (!result.success) {
     throw new Error(result.error.issues[0]?.message ?? 'Érvénytelen bemenet.');
   }
+
   return {
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: result.data }],
@@ -124,6 +126,7 @@ export function streamChat(
       result.totalUsage,
       result.response,
     ]);
+
     const usage = mapUsage(rawUsage);
     const fullMessages: ChatMessage[] = [...messages, ...response.messages];
     logInteraction({
@@ -136,6 +139,7 @@ export function streamChat(
       sql: collector.map((c) => c.sql).join('\n'),
       result: collector.map((c) => c.rows),
     });
+
     return { answer, usage, messages: fullMessages };
   })();
 

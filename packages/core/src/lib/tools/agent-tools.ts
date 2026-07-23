@@ -34,16 +34,21 @@ let ragPool: Pool | undefined;
 // épül fel, csak a Pool singleton.
 const liveAnswer: AnswerFn = (query: string) => {
   const cfg = loadRagConfig();
+
   if (!ragPool) {
     const connectionString = process.env.DATABASE_URL_READONLY;
+
     if (!connectionString) {
       throw new Error(
         'Hiányzik a DATABASE_URL_READONLY. Állítsd be a .env-ben.',
       );
     }
+
     ragPool = new Pool({ connectionString });
   }
+
   const deps = { providers: createProviders(cfg), store: new PgStore(ragPool) };
+
   return answerFromKnowledge(query, deps, {
     topN: cfg.topN,
     topK: cfg.topK,
@@ -68,12 +73,14 @@ export function buildTools(collector: ToolCall[]): ToolSet {
         try {
           const { sql, rows } = await runSql(query);
           collector.push({ sql, rows });
+
           return rows;
         } catch (error) {
           return toolError(error);
         }
       },
     }),
+
     listCategories: tool({
       description:
         'A katalógus egyedi (distinct) kategóriáinak listája. Akkor hívd, ha a felhasználó a kategóriákra kérdez rá — ne generálj hozzá SQL-t.',
@@ -82,12 +89,14 @@ export function buildTools(collector: ToolCall[]): ToolSet {
         try {
           const categories = await listCategories();
           collector.push({ sql: CATEGORIES_SQL, rows: categories });
+
           return categories;
         } catch (error) {
           return toolError(error);
         }
       },
     }),
+
     searchKnowledge: buildSearchKnowledge(liveAnswer),
   };
 }

@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../run-sql.js', () => ({
-  runSql: vi.fn(async (q: string) => ({ sql: q.trim(), rows: [{ id: 1 }], rowCount: 1 })),
+  runSql: vi.fn(async (q: string) => ({
+    sql: q.trim(),
+    rows: [{ id: 1 }],
+    rowCount: 1,
+  })),
 }));
 vi.mock('../list-categories.js', () => ({
   CATEGORIES_SQL: 'SELECT DISTINCT category FROM products ORDER BY category',
@@ -19,9 +23,15 @@ describe('buildTools', () => {
   it('a runSql execute a collectorba tolja az SQL-t és a sorokat adja vissza', async () => {
     const collector: ToolCall[] = [];
     const tools = buildTools(collector);
-    const rows = await tools.runSql.execute!({ query: 'SELECT * FROM products' }, opts);
+    const rows = await tools.runSql.execute!(
+      { query: 'SELECT * FROM products' },
+      opts,
+    );
+
     expect(rows).toEqual([{ id: 1 }]);
-    expect(collector).toEqual([{ sql: 'SELECT * FROM products', rows: [{ id: 1 }] }]);
+    expect(collector).toEqual([
+      { sql: 'SELECT * FROM products', rows: [{ id: 1 }] },
+    ]);
   });
 
   it('a listCategories execute a fix SQL-t naplózza és a kategóriákat adja vissza', async () => {
@@ -42,7 +52,11 @@ describe('buildTools', () => {
     );
     const collector: ToolCall[] = [];
     const tools = buildTools(collector);
-    const result = await tools.runSql.execute!({ query: 'DROP TABLE products' }, opts);
+    const result = await tools.runSql.execute!(
+      { query: 'DROP TABLE products' },
+      opts,
+    );
+
     expect(typeof result).toBe('string');
     expect(result as string).toContain('Csak SELECT');
     expect((result as string).length).toBeGreaterThan(0);
@@ -50,7 +64,9 @@ describe('buildTools', () => {
   });
 
   it('a listCategories execute hibánál beszédes hibaszöveget ad vissza (nem dob)', async () => {
-    vi.mocked(listCategories).mockRejectedValueOnce(new Error('DB nem elérhető.'));
+    vi.mocked(listCategories).mockRejectedValueOnce(
+      new Error('DB nem elérhető.'),
+    );
     const collector: ToolCall[] = [];
     const tools = buildTools(collector);
     const result = await tools.listCategories.execute!({}, opts);

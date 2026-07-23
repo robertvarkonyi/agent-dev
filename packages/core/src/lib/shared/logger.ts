@@ -21,5 +21,6 @@ export function logInteraction(entry: InteractionLog, dir = 'logs'): string {
   const day = entry.timestamp.slice(0, 10); // YYYY-MM-DD az ISO-időbélyegből
   const file = join(dir, `${day}.jsonl`);
   appendFileSync(file, `${JSON.stringify(entry)}\n`, 'utf8');
+
   return file;
 }

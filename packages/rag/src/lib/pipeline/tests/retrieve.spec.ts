@@ -12,6 +12,7 @@ async function seed(store: InMemoryStore, p: FakeProviders) {
     },
     { id: 'holes', text: 'why monstera leaves have holes fenestration splits' },
   ];
+
   for (const d of docs) {
     const [emb] = await p.embed([d.text]);
     const c: StoredChunk = {
@@ -28,6 +29,7 @@ async function seed(store: InMemoryStore, p: FakeProviders) {
       relatedDocs: [],
       contentHash: 'h',
     };
+
     await store.upsertDoc(d.id, [c]);
   }
 }
@@ -42,11 +44,13 @@ describe('retrieve', () => {
       { providers: p, store },
       { mode: 'raw', topN: 5, topK: 2 },
     );
+
     const full = await retrieve(
       'holes in monstera leaves',
       { providers: p, store },
       { mode: 'full', topN: 5, topK: 2 },
     );
+
     expect(raw.length).toBeGreaterThan(0);
     expect(full[0].rerankScore).toBeGreaterThanOrEqual(
       full[1]?.rerankScore ?? 0,

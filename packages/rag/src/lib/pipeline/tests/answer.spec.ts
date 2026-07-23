@@ -25,6 +25,7 @@ async function seed(
     relatedDocs: [],
     contentHash: 'h',
   };
+
   await store.upsertDoc(id, [c]);
 }
 
@@ -43,6 +44,7 @@ describe('answerFromKnowledge', () => {
       { providers: p, store },
       { topN: 5, topK: 3, minRerankScore: 0.05 },
     );
+
     expect(r.grounded).toBe(true);
     expect(r.sources[0].source).toBe('s/snake');
     expect(r.answer).not.toBe(NO_ANSWER);
@@ -56,6 +58,7 @@ describe('answerFromKnowledge', () => {
       { providers: p, store },
       { topN: 5, topK: 3, minRerankScore: 0.9 },
     );
+
     expect(r.grounded).toBe(false);
     expect(r.answer).toBe(NO_ANSWER);
     expect(r.sources).toEqual([]);

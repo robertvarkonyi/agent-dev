@@ -10,22 +10,37 @@ export interface RagConfig {
   topN: number;
   topK: number;
 }
+
 function req(env: Record<string, string | undefined>, key: string): string {
   const v = env[key];
-  if (!v) throw new Error(`Hiányzik a ${key}. Állítsd be a .env fájlban.`);
+
+  if (!v) {
+    throw new Error(`Hiányzik a ${key}. Állítsd be a .env fájlban.`);
+  }
+
   return v;
 }
+
 function num(
   env: Record<string, string | undefined>,
   key: string,
   dflt: number,
 ): number {
   const v = env[key];
-  if (v === undefined || v === '') return dflt;
+
+  if (v === undefined || v === '') {
+    return dflt;
+  }
+
   const n = Number(v);
-  if (Number.isNaN(n)) throw new Error(`A ${key} nem szám: ${v}`);
+
+  if (Number.isNaN(n)) {
+    throw new Error(`A ${key} nem szám: ${v}`);
+  }
+
   return n;
 }
+
 export function loadRagConfig(
   env: Record<string, string | undefined> = process.env,
 ): RagConfig {

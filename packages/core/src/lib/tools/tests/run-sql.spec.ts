@@ -17,6 +17,7 @@ describe('assertSelectOnly', () => {
   it('elfogadja a WITH ... SELECT-et (CTE)', () => {
     const sql =
       'WITH olcso AS (SELECT * FROM products WHERE price < 3000) SELECT name FROM olcso';
+
     expect(assertSelectOnly(sql)).toBe(sql);
   });
 

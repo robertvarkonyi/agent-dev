@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { GOLDEN_QUESTIONS, runGolden, renderGoldenMarkdown } from '../golden.js';
+import {
+  GOLDEN_QUESTIONS,
+  runGolden,
+  renderGoldenMarkdown,
+} from '../golden.js';
 import { FakeProviders } from '../../providers/providers.js';
 import { InMemoryStore } from '../../storage/store.js';
 import type { StoredChunk } from '../../storage/store.js';
@@ -29,11 +33,13 @@ describe('golden', () => {
       relatedDocs: [],
       contentHash: 'h',
     };
+
     await store.upsertDoc('snake', [c]);
     const rep = await runGolden(
       { providers: p, store },
       { topN: 5, topK: 3, minRerankScore: 0.05 },
     );
+
     expect(rep.rows.length).toBe(GOLDEN_QUESTIONS.length);
     expect(renderGoldenMarkdown(rep)).toMatch(/raw|full/i);
   });
