@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { GroundedAnswer } from '@plantbase/rag';
-import { errorMessage } from '../errors.js';
+import { errorMessage } from '../shared/errors.js';
 
 export type AnswerFn = (query: string) => Promise<GroundedAnswer>;
 

@@ -1,16 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('./run-sql.js', () => ({
+vi.mock('../run-sql.js', () => ({
   runSql: vi.fn(async (q: string) => ({ sql: q.trim(), rows: [{ id: 1 }], rowCount: 1 })),
 }));
-vi.mock('./list-categories.js', () => ({
+vi.mock('../list-categories.js', () => ({
   CATEGORIES_SQL: 'SELECT DISTINCT category FROM products ORDER BY category',
   listCategories: vi.fn(async () => ['kaktusz', 'pozsgás']),
 }));
 
-import { buildTools, type ToolCall } from './agent-tools.js';
-import { runSql } from './run-sql.js';
-import { listCategories } from './list-categories.js';
+import { buildTools, type ToolCall } from '../agent-tools.js';
+import { runSql } from '../run-sql.js';
+import { listCategories } from '../list-categories.js';
 
 // Az AI SDK execute második paramétere a ToolCallOptions — a tesztben minimál stub elég.
 const opts = { toolCallId: 't1', messages: [] } as never;

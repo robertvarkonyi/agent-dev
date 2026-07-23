@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { errorMessage } from './errors.js';
+import { errorMessage } from '../errors.js';
 
 describe('errorMessage', () => {
   it('az Error .message-ét adja vissza', () => {

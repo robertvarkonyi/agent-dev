@@ -7,9 +7,9 @@ import {
 } from 'ai';
 import { z } from 'zod';
 import { SYSTEM_PROMPT } from './system-prompt.js';
-import { logInteraction } from './logger.js';
+import { logInteraction } from '../shared/logger.js';
 import { resolveModel } from './provider.js';
-import { buildTools, type ToolCall } from './tools/agent-tools.js';
+import { buildTools, type ToolCall } from '../tools/agent-tools.js';
 
 // A többlépéses tool-use loop felső korlátja (most az SDK-é: stopWhen).
 const MAX_STEPS = 6;

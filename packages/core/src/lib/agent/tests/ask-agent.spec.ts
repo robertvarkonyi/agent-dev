@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // A naplózást elkapjuk (az invariáns: minden interakció naplózódik).
 const logSpy = vi.fn();
-vi.mock('./logger.js', () => ({
+vi.mock('../../shared/logger.js', () => ({
   logInteraction: (...a: unknown[]) => logSpy(...a),
 }));
 
 // A DB-t mockoljuk, hogy a tool-execute hálózat nélkül fusson.
-vi.mock('./tools/run-sql.js', () => ({
+vi.mock('../../tools/run-sql.js', () => ({
   runSql: vi.fn(async (q: string) => ({
     sql: q.trim(),
     rows: [{ n: 1 }],
@@ -27,8 +27,8 @@ vi.mock('ai', async (importOriginal) => {
   };
 });
 
-import { askAgent, buildPrompt, streamChat } from './ask-agent.js';
-import { SYSTEM_PROMPT } from './system-prompt.js';
+import { askAgent, buildPrompt, streamChat } from '../ask-agent.js';
+import { SYSTEM_PROMPT } from '../system-prompt.js';
 
 describe('buildPrompt', () => {
   it('a system promptot és a user üzenetet adja vissza', () => {
@@ -82,7 +82,7 @@ describe('askAgent', () => {
     // A stubolt generateText lefuttatja a runSql toolt, hogy a collector megteljen.
     generateTextMock.mockImplementation(
       async (opts: {
-        tools: ReturnType<typeof import('./tools/agent-tools.js').buildTools>;
+        tools: ReturnType<typeof import('../../tools/agent-tools.js').buildTools>;
       }) => {
         await opts.tools.runSql.execute!({ query: 'SELECT * FROM products' }, {
           toolCallId: 't',

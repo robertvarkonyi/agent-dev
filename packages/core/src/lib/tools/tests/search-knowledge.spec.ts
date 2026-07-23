@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSearchKnowledge } from './search-knowledge.js';
+import { buildSearchKnowledge } from '../search-knowledge.js';
 
 describe('buildSearchKnowledge', () => {
   it('a grounded választ + forrásokat adja vissza a modellnek', async () => {

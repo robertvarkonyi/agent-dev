@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { resolveModel } from './provider.js';
+import { resolveModel } from '../provider.js';
 
 describe('resolveModel', () => {
   const saved = { ...process.env };

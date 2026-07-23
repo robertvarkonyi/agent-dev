@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { logInteraction } from './logger.js';
+import { logInteraction } from '../logger.js';
 
 const baseEntry = {
   model: 'claude-sonnet-4-6',

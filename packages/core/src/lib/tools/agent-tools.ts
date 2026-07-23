@@ -7,7 +7,7 @@ import {
   PgStore,
   answerFromKnowledge,
 } from '@plantbase/rag';
-import { errorMessage } from '../errors.js';
+import { errorMessage } from '../shared/errors.js';
 import { runSql } from './run-sql.js';
 import { listCategories, CATEGORIES_SQL } from './list-categories.js';
 import { buildSearchKnowledge, type AnswerFn } from './search-knowledge.js';
