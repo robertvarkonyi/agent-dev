@@ -1,6 +1,6 @@
 import { retrieve, type RetrievedChunk } from './retrieve.js';
-import type { Providers } from './providers.js';
-import type { Store } from './store.js';
+import type { Providers } from '../providers/providers.js';
+import type { Store } from '../storage/store.js';
 
 export const NO_ANSWER = 'Erről nincs információ a Plantbase tudásbázisban.';
 

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { GOLDEN_QUESTIONS, runGolden, renderGoldenMarkdown } from './golden.js';
-import { FakeProviders } from './providers.js';
-import { InMemoryStore } from './store.js';
-import type { StoredChunk } from './store.js';
+import { FakeProviders } from '../providers/providers.js';
+import { InMemoryStore } from '../storage/store.js';
+import type { StoredChunk } from '../storage/store.js';
 
 describe('golden', () => {
   it('legalább 8 kérdés, van megválaszolhatatlan (Vénusz légycsapó)', () => {

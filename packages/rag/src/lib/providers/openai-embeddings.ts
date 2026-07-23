@@ -1,6 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { embedMany } from 'ai';
-import type { RagConfig } from './config.js';
+import type { RagConfig } from '../config.js';
 import type { UsageTracker } from './usage.js';
 
 export async function embedFromOpenAI(

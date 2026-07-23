@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import type { Chunk } from './chunker.js';
+import type { Chunk } from '../chunking/chunker.js';
 
 export interface StoredChunk extends Chunk {
   embedding: number[];

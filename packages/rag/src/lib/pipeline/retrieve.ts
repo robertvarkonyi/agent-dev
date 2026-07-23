@@ -1,5 +1,5 @@
-import type { Providers } from './providers.js';
-import type { Store } from './store.js';
+import type { Providers } from '../providers/providers.js';
+import type { Store } from '../storage/store.js';
 
 export interface RetrievedChunk {
   docId: string;

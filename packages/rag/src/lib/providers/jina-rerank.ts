@@ -1,4 +1,4 @@
-import type { RagConfig } from './config.js';
+import type { RagConfig } from '../config.js';
 import type { RerankHit } from './providers.js';
 import type { UsageTracker } from './usage.js';
 

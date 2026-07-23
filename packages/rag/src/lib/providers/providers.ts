@@ -1,4 +1,4 @@
-import type { RagConfig } from './config.js';
+import type { RagConfig } from '../config.js';
 import type { UsageTracker } from './usage.js';
 import { embedFromOpenAI } from './openai-embeddings.js';
 import { rerankFromJina } from './jina-rerank.js';

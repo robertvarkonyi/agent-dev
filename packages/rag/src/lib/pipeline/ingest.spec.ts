@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ingestDocs, type IngestProgress } from './ingest.js';
-import { FakeProviders } from './providers.js';
-import { InMemoryStore } from './store.js';
+import { FakeProviders } from '../providers/providers.js';
+import { InMemoryStore } from '../storage/store.js';
 
 const FM = (t: string, b: string) =>
   `---\ntitle: ${t}\nsource: s/${t}\ncategory: c\n---\n## H\n${b}`;

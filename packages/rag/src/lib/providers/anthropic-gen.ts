@@ -1,6 +1,6 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import type { RagConfig } from './config.js';
+import type { RagConfig } from '../config.js';
 import type { UsageTracker } from './usage.js';
 
 const HYDE_SYSTEM =

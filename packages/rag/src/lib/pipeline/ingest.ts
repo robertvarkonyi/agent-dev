@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { parseDoc } from './markdown.js';
-import { chunkDoc, extractRelated, resolveRelated } from './chunker.js';
-import type { Providers } from './providers.js';
-import type { Store, StoredChunk } from './store.js';
+import { parseDoc } from '../chunking/markdown.js';
+import { chunkDoc, extractRelated, resolveRelated } from '../chunking/chunker.js';
+import type { Providers } from '../providers/providers.js';
+import type { Store, StoredChunk } from '../storage/store.js';
 
 export const hashBody = (body: string): string =>
   createHash('sha256').update(body).digest('hex');

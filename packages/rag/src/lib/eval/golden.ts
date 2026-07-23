@@ -1,7 +1,7 @@
-import { retrieve, type RetrievedChunk } from './retrieve.js';
-import { answerFromKnowledge } from './answer.js';
-import type { Providers } from './providers.js';
-import type { Store } from './store.js';
+import { retrieve, type RetrievedChunk } from '../pipeline/retrieve.js';
+import { answerFromKnowledge } from '../pipeline/answer.js';
+import type { Providers } from '../providers/providers.js';
+import type { Store } from '../storage/store.js';
 
 export const GOLDEN_QUESTIONS = [
   {
