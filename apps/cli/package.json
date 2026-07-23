@@ -99,7 +99,12 @@
   },
   "dependencies": {
     "@plantbase/core": "workspace:*",
+    "@plantbase/rag": "workspace:*",
     "commander": "^15.0.0",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
   }
 }

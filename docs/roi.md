@@ -18,15 +18,15 @@ A Plantbase-szel ugyanez természetes nyelvű kérdés → azonnali, pontos vál
 
 ## 2. Feltevések (a persona tipikus hónapja)
 
-| Paraméter | Érték | Forrás |
-|---|---|---|
-| Ügyfelek / hó | 5 | BRS |
-| Szoba / ügyfél (átlag) | 3 | BRS |
-| **Szoba / hó** | **15** | 5 × 3 |
-| Kézi idő / szoba (ma) | 10–15 perc → **12 perc** átlag | BRS |
-| Agenttel / szoba (KPI) | **5 perc** (a válasz másodpercek, +átnézés/kurálás) | BRS sikerkritérium |
-| **Megtakarítás / szoba** | **7 perc** | 12 − 5 |
-| Lakberendező óradíja | **10 000 Ft/óra** (konzervatív; l. 5. pont) | piaci becslés |
+| Paraméter                | Érték                                               | Forrás             |
+| ------------------------ | --------------------------------------------------- | ------------------ |
+| Ügyfelek / hó            | 5                                                   | BRS                |
+| Szoba / ügyfél (átlag)   | 3                                                   | BRS                |
+| **Szoba / hó**           | **15**                                              | 5 × 3              |
+| Kézi idő / szoba (ma)    | 10–15 perc → **12 perc** átlag                      | BRS                |
+| Agenttel / szoba (KPI)   | **5 perc** (a válasz másodpercek, +átnézés/kurálás) | BRS sikerkritérium |
+| **Megtakarítás / szoba** | **7 perc**                                          | 12 − 5             |
+| Lakberendező óradíja     | **10 000 Ft/óra** (konzervatív; l. 5. pont)         | piaci becslés      |
 
 Az 5 perc szándékosan a KPI felső határa: a modell másodpercek alatt válaszol,
 a fennmaradó időt a lakberendező az eredmény átnézésére/kurálására fordítja.
@@ -67,11 +67,11 @@ Havi API-költség ≈ 15 szoba × ~15 Ft ≈ ~225 Ft / hó
 Az API-költség **nagyságrendekkel** kisebb a megtakarított munkaidő értékénél
 — a nettó eredmény gyakorlatilag a bruttó:
 
-| | Havi | Éves |
-|---|---|---|
-| Megtakarított munkaidő értéke | 17 500 Ft | 210 000 Ft |
-| − Agent API-költség | ~225 Ft | ~2 700 Ft |
-| **Nettó Hard ROI** | **~17 300 Ft** | **~207 000 Ft** |
+|                               | Havi           | Éves            |
+| ----------------------------- | -------------- | --------------- |
+| Megtakarított munkaidő értéke | 17 500 Ft      | 210 000 Ft      |
+| − Agent API-költség           | ~225 Ft        | ~2 700 Ft       |
+| **Nettó Hard ROI**            | **~17 300 Ft** | **~207 000 Ft** |
 
 A lokális Postgres (docker-compose) saját gépen fut, nincs felhő-DB díj.
 
@@ -81,10 +81,10 @@ Az egyetlen igazán bizonytalan bemenet az óradíj. A megtakarítás **éves**
 értéke (21 óra körül) különböző feltevések mellett:
 
 | Óradíj \ Megtak. | 6 perc/szoba (18 ó/év) | 7 perc/szoba (21 ó/év) | 9 perc/szoba (27 ó/év) |
-|---|---|---|---|
-| **8 000 Ft/ó** | 144 000 Ft | 168 000 Ft | 216 000 Ft |
-| **10 000 Ft/ó** | 180 000 Ft | **210 000 Ft** | 270 000 Ft |
-| **15 000 Ft/ó** | 270 000 Ft | 315 000 Ft | 405 000 Ft |
+| ---------------- | ---------------------- | ---------------------- | ---------------------- |
+| **8 000 Ft/ó**   | 144 000 Ft             | 168 000 Ft             | 216 000 Ft             |
+| **10 000 Ft/ó**  | 180 000 Ft             | **210 000 Ft**         | 270 000 Ft             |
+| **15 000 Ft/ó**  | 270 000 Ft             | 315 000 Ft             | 405 000 Ft             |
 
 A legpesszimistább sarok is **~144 000 Ft/év** — az API-költség itt is elenyésző.
 
@@ -100,13 +100,13 @@ A legpesszimistább sarok is **~144 000 Ft/év** — az API-költség itt is ele
 
 ## 7. Összefoglaló
 
-| Mutató | Érték |
-|---|---|
-| Idő / szoba | 12 → **5 perc** (KPI) |
-| Megtakarított idő | **~1,75 óra/hó, ~21 óra/év** |
+| Mutató                      | Érték                                                   |
+| --------------------------- | ------------------------------------------------------- |
+| Idő / szoba                 | 12 → **5 perc** (KPI)                                   |
+| Megtakarított idő           | **~1,75 óra/hó, ~21 óra/év**                            |
 | Nettó pénzbeli megtakarítás | **~17 300 Ft/hó, ~207 000 Ft/év** (10 000 Ft/ó mellett) |
-| Agent üzemeltetési költség | **< 1 000 Ft/hó** |
-| Megtérülés | gyakorlatilag azonnali — a költség a haszon töredéke |
+| Agent üzemeltetési költség  | **< 1 000 Ft/hó**                                       |
+| Megtérülés                  | gyakorlatilag azonnali — a költség a haszon töredéke    |
 
 A skálázódással (több felhasználó, ecommerce/ügyfélszolgálat/logisztika,
 későbbi ajánlás-történet) ugyanez a minta — LLM + tool + adat — nagyobb

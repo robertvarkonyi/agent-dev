@@ -49,6 +49,143 @@ Tech stack: TypeScript (strict), Nx, pnpm, Node 22 LTS, PostgreSQL + Prisma,
 Anthropic SDK + Zod, commander + node:readline, Vitest, ESLint + Prettier, tsx.
 Részletek és a `products` séma: [docs/stack.md](docs/stack.md).
 
+## Tudásbázis (RAG)
+
+A katalógus-lekérdezés mellett az agent egy **növénygondozási tudásbázisból** is tud
+grounded (forrásmegjelölt) választ adni, a `docs/knowledge/**` markdown-korpuszból (~200
+cikk). A `searchKnowledge` agent-tool egy **RAG-pipeline**-t hív: HyDE → OpenAI-embedding →
+pgvector similarity-keresés → Jina rerank → küszöbölt, forráshivatkozott válasz. Az indexelés
+**inkrementális**: tartalom-hash (sha256) alapú változásérzékeléssel a változatlan cikkek nem
+embeddelődnek újra (0 OpenAI-hívás), a törölt és a módosult cikkek pedig automatikusan
+reconcile-olódnak (utóbbi atomi `DELETE+INSERT` cserével egy tranzakcióban).
+
+- Belépési pontok: `pnpm cli rag:index` (indexelés, **RW**) · `pnpm cli rag:golden`
+  (regressziós kiértékelés golden kérdéskészleten, **RO**).
+- Külön csomag: `packages/rag` (`pipeline` / `storage` / `chunking` / `providers`).
+- Tárolás: Postgres + **pgvector** (`knowledge_chunks` tábla, HNSW cosine index); az agent az
+  eddigi **read-only** kapcsolaton olvassa (`DATABASE_URL_READONLY`), csak az `rag:index` ír.
+- Részletek (mag vs. terv, edge case-ek): [docs/RAG/ARCHITEKTURA.md](docs/RAG/ARCHITEKTURA.md).
+
+Az alábbi ábra a teljes indexelési adatfolyamot mutatja — **forrás → változásérzékelés →
+chunk → embed → tárolás**, a **törlés/módosítás** úttal együtt:
+
+![Plantbase RAG — inkrementális indexelés adatfolyama](docs/RAG/adatfolyam.svg)
+
+
+### Egy teljes indexelés token költsége
+
+A `pnpm cli rag:index` parancs folyamatosan méri a felhasznált tokeneket és a végén ad egy összegzést:
+
+```
+Kész. Indexelve: 202, kihagyva (nincs változás): 0, törölve (már nincs fájl): 0
+Token-fogyasztás providerenként:
+  openai (text-embedding-3-small): 206 429 token, 202 hívás
+  Összesen: 206 429 token
+```
+
+Amennyiben nem történt tartalmi frissítés, nem hívjuk az embedding modelt sem, így token sem kerül felhasználásra:
+
+```
+Kész. Indexelve: 0, kihagyva (nincs változás): 202, törölve (már nincs fájl): 0
+Token-fogyasztás: nincs (nem történt provider-hívás).
+```
+
+
+### Chunkolás — hogyan lesz egy cikkből kereshető darab
+
+Egy markdown-cikket nem egészben embeddelünk, hanem **értelmes, önmagukban is
+grounded darabokra** (chunk) vágjuk. A teljes logika a
+[chunker.ts](packages/rag/src/lib/chunking/chunker.ts)-ben él; egyszerűsítve öt lépés:
+
+1. **Boilerplate-szűrés.** Indexelés előtt kivágjuk a nem-tartalmi, ismétlődő
+   blokkokat: a `Perfect Pairings` és a `Words By The Sill` szekciókat (a fájl
+   végéig), a `Learn More` navigációt és a `Shop …!` upsell-sorokat. Így az
+   embedding a valódi gondozási tudásra fókuszál, nem a webshop-sablonra
+   (`stripBoilerplate`).
+
+2. **Szekciókra bontás + kontextus-prefix.** A törzset a markdown-headingek
+   (`##` > `###` > `####`) mentén szekciókra bontjuk, és minden chunk elé
+   odabiggyesztjük a **cím + heading-útvonalat** (pl. `How To Care for a
+Monstera — Water`). Így egy darab magában is „tudja", miről és minek a
+   részeként szól — és **egy chunk soha nem lép át szekcióhatárt**.
+
+3. **Méret.** Egy chunk törzse legfeljebb **~1600 karakter (~400 token)**. A
+   bekezdéseket bekezdés-határon pakoljuk egy chunkba, amíg beleférnek; egy
+   túl hosszú bekezdést előbb **mondathatáron** (`. ! ?`), végső esetben kemény
+   karakter-ablakokban szeletelünk szét.
+
+4. **Overlap (átfedés).** Két egymást követő chunk nem élesen vágódik el: az
+   előző chunk **utolsó bekezdését** átvisszük a következő elejére (**1
+   bekezdés átfedés**), hogy a határon átívelő gondolat egyik darabból se
+   hiányozzon a kereséskor. Az átfedést csak akkor visszük tovább, ha a chunk
+   **vele együtt is** a méretkorlát alatt marad.
+
+5. **Referenciák (cross-ref).** A cikkek `Learn More` listájából kinyerjük a
+   hivatkozott cikkcímeket (`extractRelated`), majd a korpusz frontmatter-címeire
+   feloldjuk őket `doc_id`-kra (`resolveRelated`) — az ismeretlen hivatkozásokat
+   eldobva. Ez a `related_docs` oszlopba kerül; ma indexelési melléktermék, a
+   query-idejű testvér-chunk behúzás [tervben van](docs/RAG/ARCHITEKTURA.md).
+
+Részletek és edge case-ek: [docs/RAG/ARCHITEKTURA.md](docs/RAG/ARCHITEKTURA.md).
+
+### Golden set — RAG regressziós kiértékelés
+
+Nyolc rögzített kérdéssel (7 megválaszolható + 1 korpuszon kívüli, negatív
+próba) méri a **raw vs. full** retrievalt és a groundingot. Csak olvas,
+előfeltétele felindexelt tudásbázis; frissíti a
+[GOLDEN-SET.md](docs/RAG/GOLDEN-SET.md) riportot, majd kiírja a
+token-fogyasztást:
+
+```bash
+pnpm cli rag:golden
+```
+
+A pipeline lépései:
+
+- **HyDE** (hipotetikus válasz) → `anthropic claude-haiku-4-5` — olcsó, gyors
+  modell; a query helyett egy hihető választ ágyazunk be, így a keresés a
+  válasz szemantikájához illeszkedik, nem a kérdés szóválasztásához.
+- **Embedding** → `openai text-embedding-3-small` — a szöveget vektorrá
+  alakítja a pgvector similarity-kereséshez.
+- **Rerank** → `jina jina-reranker-v2-base-multilingual` — a top-N jelöltet
+  relevancia szerint újrarendezi (multilingual = magyarul is), pontosabban,
+  mint a nyers vektor-távolság.
+- **Válasz** → `anthropic claude-sonnet-4-6` — erősebb modell, ami a
+  chunkokból forrásmegjelölt magyar választ ír, vagy (grounding) elutasít.
+
+## Token fogyasztás megjelenítése
+Az appban jelenleg 2 helyen jelenítjük meg a token fogyasztást (a RAG indexelésen kívül):
+
+#### Kérdésenként
+
+```
+pnpm cli ask "hogyan szaporítsam a pothost dugványról?"
+$ NODE_OPTIONS=--conditions=@plantbase/source tsx apps/cli/src/main.ts ask 'hogyan szaporítsam a pothost dugványról?'
+Íme, hogyan szaporíthatsz pothost dugványról:
+
+...
+
+Token-használat
+  anthropic  hyde        237
+  openai     embedding   156
+  jina       rerank      3380
+  anthropic  rag-answer  1463
+  anthropic  agent       5663
+  ───────────────────────
+  Összesen               10 899
+```
+
+#### Golden set kiértékeléskor
+
+```
+Token-fogyasztás providerenként:
+  openai (text-embedding-3-small): 2868 token, 24 hívás
+  anthropic (claude-haiku-4-5): 3821 token, 16 hívás
+  jina (jina-reranker-v2-base-multilingual): 57 470 token, 16 hívás
+  anthropic (claude-sonnet-4-6): 12 860 token, 7 hívás
+  Összesen: 77 019 token
+```
+
 ## Indítás
 
 1. **Node 22** (a repó `.nvmrc`-je):
@@ -139,6 +276,7 @@ pontokkal bővült:
 - [docs/brs-plantbase.md](docs/brs-plantbase.md) — üzleti követelmény-leírás (BRS)
 - [docs/architektura.md](docs/architektura.md) — fájlstruktúra és kulcsdöntések
 - [docs/stack.md](docs/stack.md) — tech stack és a `products` séma
+- [docs/RAG/ARCHITEKTURA.md](docs/RAG/ARCHITEKTURA.md) — RAG tudásbázis: inkrementális indexelés (adatfolyam-ábrával)
 - [docs/konvenciok.md](docs/konvenciok.md) — kódolási konvenciók
 - [docs/dev-workflow.md](docs/dev-workflow.md) — git, hookok, dokumentációs folyamat
 - [docs/system-prompt.md](docs/system-prompt.md) — az agent system promptja

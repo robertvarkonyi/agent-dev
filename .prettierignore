@@ -4,3 +4,8 @@
 /.nx/cache
 /.nx/workspace-data
 .nx/self-healing
+
+# Generált / lockfile — a formázó ne írja át
+pnpm-lock.yaml
+/logs
+/tmp
