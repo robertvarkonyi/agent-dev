@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { retrieve } from './retrieve.js';
-import { FakeProviders } from '../providers/providers.js';
-import { InMemoryStore } from '../storage/store.js';
-import type { StoredChunk } from '../storage/store.js';
+import { retrieve } from '../retrieve.js';
+import { FakeProviders } from '../../providers/providers.js';
+import { InMemoryStore } from '../../storage/store.js';
+import type { StoredChunk } from '../../storage/store.js';
 
 async function seed(store: InMemoryStore, p: FakeProviders) {
   const docs = [

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { loadRagConfig } from './config.js';
+import { loadRagConfig } from '../config.js';
 
 const base = {
   OPENAI_API_KEY: 'o',

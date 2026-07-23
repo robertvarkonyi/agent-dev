@@ -6,7 +6,7 @@ import {
   resolveRelated,
   chunkDoc,
   type Chunk,
-} from './chunker.js';
+} from '../chunker.js';
 
 // A chunk törzse = content a heading-path prefix (első `\n\n`-ig) levágásával.
 const bodyOf = (c: Chunk): string =>

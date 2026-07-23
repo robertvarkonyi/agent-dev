@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { UsageTracker } from './usage.js';
+import { UsageTracker } from '../usage.js';
 
 describe('UsageTracker', () => {
   it('provider:model szerint összegzi a hívásokat és a tokeneket', () => {

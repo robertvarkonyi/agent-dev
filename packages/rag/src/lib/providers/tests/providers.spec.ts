@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FakeProviders } from './providers.js';
+import { FakeProviders } from '../providers.js';
 
 describe('FakeProviders', () => {
   const p = new FakeProviders();

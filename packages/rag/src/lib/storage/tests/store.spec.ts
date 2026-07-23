@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { InMemoryStore, toVectorLiteral } from './store.js';
-import type { StoredChunk } from './store.js';
+import { InMemoryStore, toVectorLiteral } from '../store.js';
+import type { StoredChunk } from '../store.js';
 
 const chunk = (
   docId: string,
