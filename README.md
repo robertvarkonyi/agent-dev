@@ -71,6 +71,26 @@ chunk → embed → tárolás**, a **törlés/módosítás** úttal együtt:
 
 ![Plantbase RAG — inkrementális indexelés adatfolyama](docs/RAG/adatfolyam.svg)
 
+
+### Egy teljes indexelés token költsége
+
+A `pnpm cli rag:index` parancs folyamatosan méri a felhasznált tokeneket és a végén ad egy összegzést:
+
+```
+Kész. Indexelve: 202, kihagyva (nincs változás): 0, törölve (már nincs fájl): 0
+Token-fogyasztás providerenként:
+  openai (text-embedding-3-small): 206 429 token, 202 hívás
+  Összesen: 206 429 token
+```
+
+Amennyiben nem történt tartalmi frissítés, nem hívjuk az embedding modelt sem, így token sem kerül felhasználásra:
+
+```
+Kész. Indexelve: 0, kihagyva (nincs változás): 202, törölve (már nincs fájl): 0
+Token-fogyasztás: nincs (nem történt provider-hívás).
+```
+
+
 ### Chunkolás — hogyan lesz egy cikkből kereshető darab
 
 Egy markdown-cikket nem egészben embeddelünk, hanem **értelmes, önmagukban is
@@ -133,7 +153,30 @@ A pipeline lépései:
 - **Válasz** → `anthropic claude-sonnet-4-6` — erősebb modell, ami a
   chunkokból forrásmegjelölt magyar választ ír, vagy (grounding) elutasít.
 
-### Token fogyasztás megjelenítése
+## Token fogyasztás megjelenítése
+Az appban jelenleg 2 helyen jelenítjük meg a token fogyasztást (a RAG indexelésen kívül):
+
+#### Kérdésenként
+
+```
+pnpm cli ask "hogyan szaporítsam a pothost dugványról?"
+$ NODE_OPTIONS=--conditions=@plantbase/source tsx apps/cli/src/main.ts ask 'hogyan szaporítsam a pothost dugványról?'
+Íme, hogyan szaporíthatsz pothost dugványról:
+
+...
+
+Token-használat
+  anthropic  hyde        237
+  openai     embedding   156
+  jina       rerank      3380
+  anthropic  rag-answer  1463
+  anthropic  agent       5663
+  ───────────────────────
+  Összesen               10 899
+```
+
+#### Golden set kiértékeléskor
+
 ```
 Token-fogyasztás providerenként:
   openai (text-embedding-3-small): 2868 token, 24 hívás
