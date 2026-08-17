@@ -41,6 +41,7 @@ describe('buildEscalateToHuman', () => {
     const create = vi.fn((): EscalationTicket =>
       fakeTicket({ reason: 'no_grounding' }),
     );
+
     const sink: EscalationSink = { create };
 
     const tool = buildEscalateToHuman(sink);

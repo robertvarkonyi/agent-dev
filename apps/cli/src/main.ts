@@ -354,6 +354,19 @@ class FileEscalationSink implements EscalationSink {
   }
 }
 
+// Egy sort kér a readline-tól; ha a bemenet lezárult (EOF / Ctrl-D / pipe vége), null-t ad —
+// így a piped/scriptelt demó tisztán kilép, nem dob „readline was closed" hibát.
+async function promptLine(
+  rl: ReturnType<typeof createRlPromises>,
+  question: string,
+): Promise<string | null> {
+  try {
+    return await rl.question(question);
+  } catch {
+    return null;
+  }
+}
+
 // Emberi jóváhagyási pont: az eszkalált jegy teljes kontextusát kiírja, majd a kolléga dönt.
 // Ez a demó „az eszkaláció tényleg embert hív" része — élő, begépelt emberi döntés.
 async function handleHandoff(
@@ -374,16 +387,18 @@ async function handleHandoff(
 
   console.log('────────────────────────────────────────────────────────');
 
-  const choice = (
-    await rl.question(
-      'Kolléga döntése — [j]óváhagy+átvesz / [e]lutasít (vissza az AI-nak) / [v]álasz: ',
-    )
-  )
-    .trim()
-    .toLowerCase();
+  const raw = await promptLine(
+    rl,
+    'Kolléga döntése — [j]óváhagy+átvesz / [e]lutasít (vissza az AI-nak) / [v]álasz: ',
+  );
+
+  // EOF a handoff alatt → alapértelmezés: jóváhagyás (a jegy semmiképp ne maradjon nyitva „félúton").
+  const choice = (raw ?? 'j').trim().toLowerCase();
 
   if (choice === 'v') {
-    const note = await rl.question('  Írd be a választ a vásárlónak: ');
+    const note =
+      (await promptLine(rl, '  Írd be a választ a vásárlónak: ')) ?? '';
+
     sink.resolve(ticket.ticketId, 'answered', 'operator', note.trim());
     console.log(`✅ Válasz naplózva, jegy ${ticket.ticketId} lezárva.\n`);
 
@@ -391,7 +406,9 @@ async function handleHandoff(
   }
 
   if (choice === 'e') {
-    const note = await rl.question('  Indoklás (miért nem kell ember?): ');
+    const note =
+      (await promptLine(rl, '  Indoklás (miért nem kell ember?): ')) ?? '';
+
     sink.resolve(ticket.ticketId, 'rejected', 'operator', note.trim());
     console.log(
       `↩️  Eszkaláció visszavonva, jegy ${ticket.ticketId} lezárva.\n`,
@@ -419,7 +436,13 @@ async function runCustomerAssist(): Promise<void> {
 
   try {
     for (;;) {
-      const line = (await rl.question('te> ')).trim();
+      const raw = await promptLine(rl, 'te> ');
+
+      if (raw === null) {
+        break; // stdin lezárult (EOF / Ctrl-D / pipe vége) — tiszta kilépés
+      }
+
+      const line = raw.trim();
 
       if (line === 'exit' || line === 'quit') {
         break;
@@ -436,6 +459,7 @@ async function runCustomerAssist(): Promise<void> {
         CUSTOMER_SYSTEM_PROMPT,
         sink,
       );
+
       // A done sosem maradhat kezeletlen (stream-hiba → a for-await a catch-be ugrik).
       done.catch(() => undefined);
 
