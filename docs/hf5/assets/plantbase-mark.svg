@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="Plantbase">
+  <title>Plantbase</title>
+  <!-- base line: a 'base' a Plantbase-ben + a talaj, amiből kihajt -->
+  <path d="M14.5 39.5 H33.5" stroke="#1f7a45" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- stem -->
+  <path d="M24 40 V27" stroke="#1f7a45" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- levelek: szimmetrikus hármas hajtás -->
+  <path d="M0 0 C5 -6.5 5 -13 0 -19.5 C-5 -13 -5 -6.5 0 0 Z" transform="translate(24 28) rotate(-34)" fill="#2f9d5b"/>
+  <path d="M0 0 C4 -5 4 -9.5 0 -14 C-4 -9.5 -4 -5 0 0 Z" transform="translate(24 27.5) rotate(0)" fill="#37b06a"/>
+  <path d="M0 0 C5 -6.5 5 -13 0 -19.5 C-5 -13 -5 -6.5 0 0 Z" transform="translate(24 28) rotate(34)" fill="#2f9d5b"/>
+  <!-- mag: terrakotta akcentus -->
+  <circle cx="24" cy="39.5" r="2.6" fill="#c4693d"/>
+</svg>

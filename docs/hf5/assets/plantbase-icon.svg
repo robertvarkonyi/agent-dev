@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="Plantbase">
+  <title>Plantbase</title>
+  <!-- app-tile / favicon: zöld squircle + krém hajtás -->
+  <rect width="48" height="48" rx="13" fill="#1f7a45"/>
+  <rect width="48" height="48" rx="13" fill="url(#g)" opacity="0.14"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M15 40 H33" stroke="#eef6ec" stroke-width="3" stroke-linecap="round"/>
+  <path d="M24 40.5 V28" stroke="#eef6ec" stroke-width="3" stroke-linecap="round"/>
+  <path d="M0 0 C4.6 -6 4.6 -12 0 -18 C-4.6 -12 -4.6 -6 0 0 Z" transform="translate(24 28.5) rotate(-34)" fill="#eef6ec"/>
+  <path d="M0 0 C3.7 -4.6 3.7 -8.8 0 -13 C-3.7 -8.8 -3.7 -4.6 0 0 Z" transform="translate(24 28) rotate(0)" fill="#ffffff"/>
+  <path d="M0 0 C4.6 -6 4.6 -12 0 -18 C-4.6 -12 -4.6 -6 0 0 Z" transform="translate(24 28.5) rotate(34)" fill="#eef6ec"/>
+  <circle cx="24" cy="40" r="2.4" fill="#e5915f"/>
+</svg>
