@@ -71,7 +71,6 @@ chunk → embed → tárolás**, a **törlés/módosítás** úttal együtt:
 
 ![Plantbase RAG — inkrementális indexelés adatfolyama](docs/RAG/adatfolyam.svg)
 
-
 ### Egy teljes indexelés token költsége
 
 A `pnpm cli rag:index` parancs folyamatosan méri a felhasznált tokeneket és a végén ad egy összegzést:
@@ -89,7 +88,6 @@ Amennyiben nem történt tartalmi frissítés, nem hívjuk az embedding modelt s
 Kész. Indexelve: 0, kihagyva (nincs változás): 202, törölve (már nincs fájl): 0
 Token-fogyasztás: nincs (nem történt provider-hívás).
 ```
-
 
 ### Chunkolás — hogyan lesz egy cikkből kereshető darab
 
@@ -154,6 +152,7 @@ A pipeline lépései:
   chunkokból forrásmegjelölt magyar választ ír, vagy (grounding) elutasít.
 
 ## Token fogyasztás megjelenítése
+
 Az appban jelenleg 2 helyen jelenítjük meg a token fogyasztást (a RAG indexelésen kívül):
 
 #### Kérdésenként
@@ -280,3 +279,4 @@ pontokkal bővült:
 - [docs/konvenciok.md](docs/konvenciok.md) — kódolási konvenciók
 - [docs/dev-workflow.md](docs/dev-workflow.md) — git, hookok, dokumentációs folyamat
 - [docs/system-prompt.md](docs/system-prompt.md) — az agent system promptja
+- [docs/hf5/README.md](docs/hf5/README.md) — **Ügyfélsegéd (HF5)**: ügyfélirányú PoC (`segit` + `sor`), eszkaláció emberhez, business case (prezentáció, mérési terv, kérdéslap)

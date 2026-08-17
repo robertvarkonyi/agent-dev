@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="hu">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plantbase Ügyfélsegéd — döntéselőkészítő (HF5)</title>
+    <style>
+      :root {
+        --bg: #f7f9f7;
+        --panel: #ffffff;
+        --ink: #16211b;
+        --muted: #5c6b63;
+        --line: #dde5df;
+        --accent: #1f9d63;
+        --accent-ink: #0d5f39;
+        --warn: #b5641b;
+        --danger: #b23b3b;
+        --us: #b5641b;
+        --eu: #1f9d63;
+        --shadow: 0 8px 30px rgba(20, 40, 30, 0.08);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1512;
+          --panel: #161d19;
+          --ink: #e7efe9;
+          --muted: #9db0a6;
+          --line: #29332d;
+          --accent: #3cc07f;
+          --accent-ink: #7fe0ac;
+          --warn: #e0965a;
+          --danger: #e08181;
+          --us: #e0965a;
+          --eu: #3cc07f;
+          --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .deck {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 24px 20px 96px;
+      }
+      .slide {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 40px 44px;
+        margin: 0 0 26px;
+        scroll-margin-top: 16px;
+        min-height: 60vh;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent-ink);
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
+        padding: 5px 11px;
+        border-radius: 999px;
+      }
+      h1 {
+        font-size: 40px;
+        line-height: 1.1;
+        margin: 18px 0 10px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 27px;
+        line-height: 1.15;
+        margin: 14px 0 14px;
+        letter-spacing: -0.01em;
+      }
+      h3 {
+        font-size: 15px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 22px 0 8px;
+      }
+      p {
+        margin: 0 0 12px;
+      }
+      .lead {
+        font-size: 19px;
+        color: var(--ink);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+      }
+      .cols-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 720px) {
+        .cols,
+        .cols-3 {
+          grid-template-columns: 1fr;
+        }
+        .slide {
+          padding: 28px 22px;
+        }
+        h1 {
+          font-size: 30px;
+        }
+      }
+      ul {
+        margin: 6px 0 12px;
+        padding-left: 20px;
+      }
+      li {
+        margin: 5px 0;
+      }
+      .card {
+        background: color-mix(in srgb, var(--accent) 6%, transparent);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 18px;
+      }
+      .card.warn {
+        background: color-mix(in srgb, var(--warn) 10%, transparent);
+      }
+      .card.danger {
+        background: color-mix(in srgb, var(--danger) 9%, transparent);
+      }
+      .pill {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+      }
+      .pill.us {
+        color: var(--us);
+        border-color: color-mix(in srgb, var(--us) 45%, var(--line));
+      }
+      .pill.eu {
+        color: var(--eu);
+        border-color: color-mix(in srgb, var(--eu) 45%, var(--line));
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        margin: 6px 0 4px;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.9em;
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
+        padding: 1px 5px;
+        border-radius: 5px;
+      }
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 10px;
+        margin: 10px 0;
+      }
+      .node {
+        flex: 1 1 150px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: var(--panel);
+      }
+      .node .t {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .node .d {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .branch {
+        border-left: 3px solid var(--accent);
+        padding-left: 14px;
+        margin: 8px 0;
+      }
+      .branch.esc {
+        border-left-color: var(--warn);
+      }
+      .kpi {
+        display: flex;
+        gap: 26px;
+        flex-wrap: wrap;
+        margin: 8px 0;
+      }
+      .kpi .n {
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--accent-ink);
+      }
+      .kpi .l {
+        font-size: 13px;
+        color: var(--muted);
+        max-width: 190px;
+      }
+      .src {
+        font-size: 12px;
+        color: var(--muted);
+        font-style: italic;
+      }
+      .tag {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+      .tag.err {
+        color: var(--danger);
+        border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12.5px;
+        color: var(--muted);
+        margin-top: 26px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--line);
+      }
+      .navbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px;
+        background: color-mix(in srgb, var(--bg) 82%, transparent);
+        backdrop-filter: blur(8px);
+        border-top: 1px solid var(--line);
+        z-index: 10;
+      }
+      .navbar button {
+        font: inherit;
+        font-size: 13px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        border-radius: 8px;
+        padding: 6px 14px;
+        cursor: pointer;
+      }
+      .navbar button:hover {
+        border-color: var(--accent);
+      }
+      .counter {
+        align-self: center;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+        min-width: 48px;
+        text-align: center;
+      }
+      /* Egy-dia mód (JS kapcsolja); JS nélkül minden dia görgethető marad. */
+      body.one .slide {
+        display: none;
+      }
+      body.one .slide.active {
+        display: block;
+      }
+      @media print {
+        .navbar {
+          display: none;
+        }
+        .slide {
+          break-after: page;
+          box-shadow: none;
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck">
+      <!-- 1 -->
+      <section class="slide" id="s1">
+        <span class="eyebrow">🌱 Döntéselőkészítő · vezetői kör</span>
+        <h1>Plantbase Ügyfélsegéd</h1>
+        <p class="lead">
+          A meglévő, belső AI-asszisztensünk <strong>kifelé fordítva</strong>: a
+          webshop <strong>vásárlói</strong> kérdeznek tőle — árat, készletet,
+          csomagot, gondozást — <strong>0–24-ben</strong>, forrásolt válasszal,
+          <strong>emberi felügyelet</strong> mellett.
+        </p>
+        <div class="cols">
+          <div class="card">
+            <h3 style="margin-top: 0">A lényeg egy mondatban</h3>
+            <p style="margin: 0">
+              Nem új rendszert építettünk — a már bevált agentnek adtunk
+              <strong>új bejáratot</strong>. Az agent, a tudásbázis és az
+              eszközök ugyanazok.
+            </p>
+          </div>
+          <div class="card">
+            <h3 style="margin-top: 0">Amit ma eldöntünk</h3>
+            <p style="margin: 0">
+              Indítsuk-e a <strong>pilotot</strong> — működő PoC-cal a hátunk
+              mögött. A prezentáció a business case, a PoC a bizonyíték.
+            </p>
+          </div>
+        </div>
+        <div class="foot">
+          <span>Várkonyi Róbert · Plantbase</span>
+          <span>HF5 — a rendszer kifelé fordítása</span>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section class="slide" id="s2">
+        <span class="eyebrow">A use case</span>
+        <h2>„Mit kapnak ebből az ügyfeleink?"</h2>
+        <p class="lead">
+          A vásárló maga, szabad szöveggel kérdez az asszisztenstől — nem a
+          kollégán keresztül, és nem csak munkaidőben.
+        </p>
+        <div class="cols">
+          <div>
+            <h3>Megold 4 fájdalmat</h3>
+            <ul>
+              <li>
+                <strong>1 · Munkaidőn kívül</strong> — 0–24 elérhető, azonnal
+                válaszol.
+              </li>
+              <li>
+                <strong>2 · Ismétlődő kérdések</strong> — az „mennyibe /
+                raktáron van-e / hogyan gondozzam" magától megoldódik.
+              </li>
+              <li>
+                <strong>8 · A sürgős beragad a triviális mögé</strong> — a
+                rutint elviszi, a valódi ügyet kontextussal emberhez adja
+                (triage).
+              </li>
+              <li>
+                <strong>9 · Ki-ki mást válaszol</strong> — egyetlen, forrásolt,
+                konzisztens hang.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3>Amit szándékosan NEM old meg</h3>
+            <div class="card danger" style="margin-bottom: 12px">
+              <strong>4 · „Hol tart az ügyem?"</strong><br />
+              <span class="muted"
+                >Nincs rendelési adat a rendszerben — ezt az asszisztens
+                <em>emberhez irányítja</em>, nem találgat.</span
+              >
+            </div>
+            <div class="card danger">
+              <strong>10 · Néma lemorzsolódás</strong><br />
+              <span class="muted"
+                >Nincs viselkedési/CRM-jel a churn előrejelzéséhez. Külön
+                adat-projekt lenne.</span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="foot">
+          <span>Célközönség: a webshop vásárlói (lakberendező + otthoni)</span>
+          <span>4 megoldva · 2 kimondottan nem</span>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section class="slide" id="s3">
+        <span class="eyebrow">Mit csinál a PoC</span>
+        <h2>Egy folyamat, egy emberi jóváhagyási ponttal</h2>
+        <div class="flow">
+          <div class="node">
+            <div class="t">1 · Vásárló kérdez</div>
+            <div class="d">szabad szöveg (chat)</div>
+          </div>
+          <div class="node">
+            <div class="t">2 · Asszisztens</div>
+            <div class="d">
+              <code>runSql</code> / <code>listCategories</code> /
+              <code>searchKnowledge</code>
+            </div>
+          </div>
+          <div class="node">
+            <div class="t">3 · Confidence gate</div>
+            <div class="d">magabiztos és grounded?</div>
+          </div>
+        </div>
+        <div class="branch">
+          <strong>IGEN → auto-válasz (self-service).</strong>
+          <span class="muted"
+            >Katalógus-adat vagy forrásolt gondozási válasz, azonnal.</span
+          >
+        </div>
+        <div class="branch esc">
+          <strong>NEM → <code>escalateToHuman</code>.</strong>
+          <span class="muted">
+            grounded=false · rendelés/panasz/fizetés · kétértelmű · a vásárló
+            embert kér → <strong>jegy a sorba</strong>, majd a kolléga
+            <strong>jóváhagy / átvesz / elutasít</strong> (visszavonható). A
+            vásárlónak: „továbbítottam egy kollégának".
+          </span>
+        </div>
+        <div class="cols" style="margin-top: 14px">
+          <div class="card">
+            <strong>Az eszkaláció tényleg embert hív.</strong>
+            <span class="muted"
+              >A demóban élő, begépelt emberi döntés zárja a jegyet.</span
+            >
+          </div>
+          <div class="card">
+            <strong>Art. 50 közlés.</strong>
+            <span class="muted"
+              >Az asszisztens az elején közli, hogy AI (nem élő
+              ügyintéző).</span
+            >
+          </div>
+        </div>
+        <div class="foot">
+          <span
+            >Demo: <code>pnpm cli segit</code> · a sor:
+            <code>pnpm cli sor</code></span
+          >
+          <span>Emberi jóváhagyási pont = a kolléga a jegyen</span>
+        </div>
+      </section>
+
+      <!-- 4 — ADATTÉRKÉP -->
+      <section class="slide" id="s4">
+        <span class="eyebrow">Kötelező dia · Adattérkép</span>
+        <h2>Egy vásárlói kérés útja</h2>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Lépés / adat</th>
+                <th>Hova megy</th>
+                <th>Régió</th>
+                <th>Mi az adat</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Vásárlói kérdés</strong> (bemenet)</td>
+                <td>a mi rendszerünk (agent)</td>
+                <td><span class="pill eu">nálunk</span></td>
+                <td>szabad szöveg — <strong>tartalmazhat PII-t</strong></td>
+              </tr>
+              <tr>
+                <td>Nyelvi modell + válasz (agent, HyDE)</td>
+                <td>Anthropic</td>
+                <td><span class="pill us">USA</span></td>
+                <td>a kérdés + katalógus-részletek a prompt­ban</td>
+              </tr>
+              <tr>
+                <td>Beágyazás (embedding)</td>
+                <td>OpenAI</td>
+                <td><span class="pill us">USA</span></td>
+                <td>a keresési kérdés szövege</td>
+              </tr>
+              <tr>
+                <td>Újrarangsorolás (rerank)</td>
+                <td>Jina AI</td>
+                <td><span class="pill eu">EU (DE)</span></td>
+                <td>a kérdés + a jelölt cikk-részletek</td>
+              </tr>
+              <tr>
+                <td><strong>Katalógus + tudásbázis</strong></td>
+                <td>Postgres (lokális)</td>
+                <td><span class="pill eu">nálunk</span></td>
+                <td>termékek + gondozási cikkek — nem személyes adat</td>
+              </tr>
+              <tr>
+                <td><strong>Napló</strong> (minden interakció)</td>
+                <td><code>logs/*.jsonl</code> (lokális)</td>
+                <td><span class="pill eu">nálunk</span></td>
+                <td>teljes kérdés+válasz+SQL+token — megőrzési szabály kell</td>
+              </tr>
+              <tr>
+                <td><strong>Eszkalációs jegy</strong></td>
+                <td><code>tickets/*.jsonl</code> (lokális)</td>
+                <td><span class="pill eu">nálunk</span></td>
+                <td>vásárlói üzenet + összefoglaló — potenciális PII</td>
+              </tr>
+              <tr>
+                <td><strong>Amit SOHA nem küldünk ki</strong></td>
+                <td>—</td>
+                <td>—</td>
+                <td>
+                  DB-jelszavak, a <strong>read-write</strong> kapcsolat, más
+                  vásárlók adatai (az agent csak
+                  <strong>read-only SELECT</strong>)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card warn" style="margin-top: 12px">
+          <strong>2 amerikai + 1 európai vendor.</strong>
+          <span class="muted">
+            A US-transzfer (Anthropic, OpenAI) GDPR Chapter V kérdés: SCC + DPA
+            + transfer impact assessment. A Jina EU-honos (kedvezőbb). Teendő: a
+            kérdés PII-szűrése, mielőtt providernek küldjük vagy naplózzuk. Lásd
+            a HF4 AI-Act elemzést.
+          </span>
+        </div>
+        <div class="foot">
+          <span class="src"
+            >Forrás: a repó kódja (<code>agent-tools.ts</code>,
+            <code>logger.ts</code>) + <code>.env</code> providerek</span
+          >
+          <span>Nincs kihagyott adatmozgás</span>
+        </div>
+      </section>
+
+      <!-- 5 — ROLLOUT -->
+      <section class="slide" id="s5">
+        <span class="eyebrow">Kötelező dia · Rollout terv</span>
+        <h2>Pilottól a teljes bevezetésig</h2>
+        <div class="cols-3">
+          <div class="card">
+            <h3 style="margin-top: 0">1 · Pilot</h3>
+            <ul style="padding-left: 18px">
+              <li>
+                Egy kör: <strong>munkaidőn kívüli chat</strong>, 1 kategória
+              </li>
+              <li>Méret: ~2–4 hét, korlátozott vásárlói kör</li>
+              <li>Emberi felügyelet minden eszkaláción</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 style="margin-top: 0">2 · Döntési pont</h3>
+            <p class="muted" style="margin: 0 0 6px">Feltétel a GO-hoz:</p>
+            <ul style="padding-left: 18px">
+              <li><strong>0</strong> forrás nélkül kiment válasz</li>
+              <li>eszkalációs arány a sávban (mért)</li>
+              <li>önkiszolgálási arány &gt; küszöb</li>
+              <li>pozitív vásárlói visszajelzés</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 style="margin-top: 0">3 · Teljes bevezetés</h3>
+            <ul style="padding-left: 18px">
+              <li>Minden kategória, teljes nyitvatartás + off-hours</li>
+              <li>PII-szűrés + naplómegőrzés élesítve</li>
+              <li>Skálázás: ugyanaz az egységköltség</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 14px">
+          <strong>Rendszergazda go-live után:</strong>
+          <span class="muted">
+            az <strong>ügyfélszolgálati csapat vezetője</strong> (folyamatgazda)
+            — ő nézi a heti/havi mérőszámokat és a jegysort; fejlesztői support
+            a prompt/eszköz-változásokhoz.
+          </span>
+        </div>
+        <div class="foot">
+          <span>A pilot mér, nem ígér — a döntés a számok alapján</span>
+          <span>Óvatos benefit · felső korlát költség</span>
+        </div>
+      </section>
+
+      <!-- 6 — MÉRÉSI TERV -->
+      <section class="slide" id="s6">
+        <span class="eyebrow">Kötelező dia · Mérési terv</span>
+        <h2>Honnan tudjuk, hogy működik?</h2>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Mit mérünk</th>
+                <th>Honnan</th>
+                <th>Riport / kinek</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  Válaszidő az ügyfél felé
+                  <span class="muted">(fájd. 1,2)</span>
+                </td>
+                <td>agent-napló</td>
+                <td>heti · folyamatgazda</td>
+                <td><span class="tag">fájdalom</span></td>
+              </tr>
+              <tr>
+                <td>
+                  Önkiszolgálási arány (eszkaláció nélkül megoldva)
+                  <span class="muted">(fájd. 2)</span>
+                </td>
+                <td>napló + jegysor</td>
+                <td>heti · folyamatgazda</td>
+                <td><span class="tag">fájdalom</span></td>
+              </tr>
+              <tr>
+                <td>Eszkalációs arány <span class="muted">(fájd. 8)</span></td>
+                <td>jegysor (<code>tickets/</code>)</td>
+                <td>havi dia · szponzor</td>
+                <td><span class="tag">fájdalom</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong
+                    >Forrás nélkül kiment / grounded=false-t figyelmen kívül
+                    hagyó válasz</strong
+                  >
+                </td>
+                <td>napló-audit (mintavétel)</td>
+                <td>havi · folyamatgazda</td>
+                <td><span class="tag err">agent-hiba</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Túl-eszkaláció</strong> (kolléga „ezt az AI is
+                  megoldhatta volna" = rejected)
+                </td>
+                <td>jegysor resolution</td>
+                <td>havi · szponzor</td>
+                <td><span class="tag err">agent-hiba</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card" style="margin-top: 12px">
+          <span class="muted">
+            ≥1 metrika a <strong>megoldott fájdalomhoz</strong> kötve, ≥1 az
+            <strong>agent hibáját</strong> méri. Minden sorhoz létező adatforrás
+            (napló / jegysor). Ma nincs naplózva: a válaszidő (kérés→válasz
+            latencia) és a CSAT — ezeket a pilotra bekötjük. A részletes tábla a
+            repóban: <code>docs/hf5/meresi-terv.md</code>.
+          </span>
+        </div>
+        <div class="foot">
+          <span class="src"
+            >Adatforrás: <code>logs/</code> + <code>tickets/</code></span
+          >
+          <span>Mérjük a hibát is, nem csak a sikert</span>
+        </div>
+      </section>
+
+      <!-- 7 — Emberi felügyelet + kockázat -->
+      <section class="slide" id="s7">
+        <span class="eyebrow">A bizalmi kérdés</span>
+        <h2>Miért lehet rá bízni az ügyfeleket?</h2>
+        <div class="cols">
+          <div>
+            <ul>
+              <li>
+                <strong>Read-only.</strong> Az agent SQL-je csak
+                <code>SELECT</code> (kód-guard + külön DB-role) — adatot nem
+                módosít.
+              </li>
+              <li>
+                <strong>Nem talál ki.</strong> Forrás nélkül („grounded=false")
+                nem válaszol — <strong>embert hív</strong>.
+              </li>
+              <li>
+                <strong>Ember a hurokban.</strong> Az eszkalált jegyet ember
+                hagyja jóvá; a döntés <strong>visszavonható</strong>.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <ul>
+              <li>
+                <strong>Átlátható.</strong> Art. 50 közlés + minden interakció
+                naplózva (visszakövethető).
+              </li>
+              <li>
+                <strong>PII-teendő.</strong> A vásárlói kérdés PII-t
+                tartalmazhat → jogalap, megőrzési idő, PII-szűrés a providerek
+                felé (GDPR).
+              </li>
+              <li>
+                <strong>A prompt nem biztonsági határ.</strong> A kemény korlát
+                (read-only) kódban/DB-role-ban van, nem a szövegben.
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="card warn" style="margin-top: 6px">
+          <strong>AI Act:</strong>
+          <span class="muted"
+            >minimális kockázat + Art. 50 átláthatóság (generatív chatbot). A
+            besorolás részletei: <code>docs/AI-Act.md</code> (HF4).</span
+          >
+        </div>
+        <div class="foot">
+          <span>Legszűkebb jogosultság · teljes visszakövethetőség</span>
+          <span>Kockázat: kereskedelmi, visszafordítható</span>
+        </div>
+      </section>
+
+      <!-- 8 — Zárás -->
+      <section class="slide" id="s8">
+        <span class="eyebrow">A kérés</span>
+        <h2>Indítsuk a pilotot</h2>
+        <div class="kpi">
+          <div>
+            <div class="n">0–24</div>
+            <div class="l">elérhetőség a vásárlóknak (fájdalom 1)</div>
+          </div>
+          <div>
+            <div class="n">~20–30 Ft</div>
+            <div class="l">
+              felső becslés / gondozási beszélgetés (mért token × listaár)
+            </div>
+          </div>
+          <div>
+            <div class="n">4 → 2</div>
+            <div class="l">
+              megoldott fájdalom vs. kimondottan nem megoldott
+            </div>
+          </div>
+        </div>
+        <div class="cols" style="margin-top: 10px">
+          <div class="card">
+            <h3 style="margin-top: 0">Amit kérünk</h3>
+            <p style="margin: 0">
+              Jóváhagyás a <strong>2–4 hetes pilotra</strong> a fenti
+              feltételekkel; a teljes bevezetésről a mérőszámok döntenek.
+            </p>
+          </div>
+          <div class="card">
+            <h3 style="margin-top: 0">Amit adunk</h3>
+            <p style="margin: 0">
+              Működő PoC (<code>segit</code> + <code>sor</code>), adattérkép,
+              mérési terv, kérdéslap — minden állítás mögött a repó.
+            </p>
+          </div>
+        </div>
+        <p class="src" style="margin-top: 16px">
+          Számok forrása: mért = a repó token-riportja; becslés/ökölszám külön
+          jelölve. Haszonra óvatos, költségre felső becslés.
+        </p>
+        <div class="foot">
+          <span>Köszönöm — kérdezzetek, nyugodtan keményen.</span>
+          <span>Várkonyi Róbert · Plantbase Ügyfélsegéd</span>
+        </div>
+      </section>
+    </main>
+
+    <nav class="navbar" aria-label="Diavezérlés">
+      <button id="prev" type="button">← Előző</button>
+      <span class="counter" id="counter">1 / 8</span>
+      <button id="next" type="button">Következő →</button>
+      <button id="mode" type="button" title="Egy dia / görgetés">
+        ⧉ Nézet
+      </button>
+    </nav>
+
+    <script>
+      (function () {
+        var slides = Array.prototype.slice.call(
+          document.querySelectorAll('.slide'),
+        );
+        var counter = document.getElementById('counter');
+        var i = 0;
+        var one = false;
+
+        function render() {
+          counter.textContent = i + 1 + ' / ' + slides.length;
+          slides.forEach(function (s, k) {
+            s.classList.toggle('active', k === i);
+          });
+          if (one) slides[i].scrollIntoView({ block: 'start' });
+        }
+        function go(d) {
+          i = Math.max(0, Math.min(slides.length - 1, i + d));
+          render();
+        }
+        document.getElementById('prev').onclick = function () {
+          go(-1);
+        };
+        document.getElementById('next').onclick = function () {
+          go(1);
+        };
+        document.getElementById('mode').onclick = function () {
+          one = !one;
+          document.body.classList.toggle('one', one);
+          render();
+        };
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+            go(1);
+            e.preventDefault();
+          } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+            go(-1);
+            e.preventDefault();
+          }
+        });
+        render();
+      })();
+    </script>
+  </body>
+</html>
