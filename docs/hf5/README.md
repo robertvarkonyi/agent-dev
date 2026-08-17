@@ -131,12 +131,14 @@ pnpm vitest run packages/core     # 52 teszt, benne:
 ## A HF5 többi leadandója
 
 - **Prezentáció (business case)** — [prezentacio.html](prezentacio.html) (8 dia; adattérkép,
-  rollout, mérési terv). Böngészőben lapozható (← →), világos/sötét témával, saját arculattal.
+  rollout, mérési terv). „Üvegház" arculat: mély zöld drench, lime akcent, Bricolage Grotesque
+  display + Hanken Grotesk törzs, beágyazott fontokkal — **önálló fájl, nincs külső kérés**.
+  Böngészőben lapozható (← →); „Nézet" = egy-dia / görgetés mód.
 - **Logó / arculat** — [assets/plantbase-logo.svg](assets/plantbase-logo.svg) (lockup),
   [assets/plantbase-mark.svg](assets/plantbase-mark.svg) (jel),
   [assets/plantbase-icon.svg](assets/plantbase-icon.svg) (app-ikon/favicon). Lapos vektor,
-  szimmetrikus hármas hajtás a „base" vonalból; botanikus zöld + terrakotta. A deck színvilága
-  és betűtípusa (serif fejlécek + sans törzs) ehhez igazodik.
+  szimmetrikus hármas hajtás a „base" vonalból, terrakotta maggal. A jel a deckben is szerepel,
+  a mély zöld „Üvegház" háttérhez hangolt színekkel (lime + mint levelek).
 - **Mérési terv (teljes)** — [meresi-terv.md](meresi-terv.md).
 - **Kérdéslap** — [kerdeslap.md](kerdeslap.md) (6 kapott + 2 saját kényes kérdés).
 - **Design-spec** — [../superpowers/specs/2026-08-17-hf5-ugyfel-poc-design.md](../superpowers/specs/2026-08-17-hf5-ugyfel-poc-design.md).
