@@ -12,6 +12,10 @@ import { errorMessage } from '../shared/errors.js';
 import { runSql } from './run-sql.js';
 import { listCategories, CATEGORIES_SQL } from './list-categories.js';
 import { buildSearchKnowledge, type AnswerFn } from './search-knowledge.js';
+import {
+  buildEscalateToHuman,
+  type EscalationSink,
+} from './escalate-to-human.js';
 
 // Egy tool-hívás naplózandó nyoma: a ténylegesen futott SQL + a modellnek adott sorok.
 export interface ToolCall {
@@ -67,9 +71,14 @@ function makeLiveAnswer(tracker?: UsageTracker): AnswerFn {
 // A tool-ok egyetlen helye (ez váltja az inline Anthropic.Tool konstansokat). Új tool = egy
 // bejegyzés ide. A `collector` futás-hatókörű: minden execute mellékhatásként belépteti a
 // naplózandó { sql, rows }-t, miközben a modellnek csak a rows megy vissza.
+//
+// Az `escalateSink` OPCIONÁLIS: ha kap sinket (vásárlói/ügyfélirányú útvonal, HF5), felveszi az
+// escalateToHuman toolt. Sink nélkül (lakberendező-útvonal) a tool-készlet változatlan — a meglévő
+// hívások és tesztek érintetlenek.
 export function buildTools(
   collector: ToolCall[],
   tracker?: UsageTracker,
+  escalateSink?: EscalationSink,
 ): ToolSet {
   return {
     runSql: tool({
@@ -109,5 +118,23 @@ export function buildTools(
     }),
 
     searchKnowledge: buildSearchKnowledge(makeLiveAnswer(tracker)),
+
+    // Csak ha kaptunk sinket (ügyfélirányú útvonal): a create-et becsomagoljuk, hogy az eszkaláció
+    // a naplózandó collectorba is bekerüljön (audit), miközben a valódi sink írja a jegysort.
+    ...(escalateSink
+      ? {
+          escalateToHuman: buildEscalateToHuman({
+            create: (input) => {
+              const ticket = escalateSink.create(input);
+              collector.push({
+                sql: `escalateToHuman:${input.reason}`,
+                rows: ticket,
+              });
+
+              return ticket;
+            },
+          }),
+        }
+      : {}),
   };
 }

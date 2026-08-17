@@ -5,16 +5,27 @@
 import 'dotenv/config';
 import { Command } from 'commander';
 import { createInterface } from 'node:readline';
+import { createInterface as createRlPromises } from 'node:readline/promises';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import {
   askAgent,
   buildPrompt,
   streamChat,
   SYSTEM_PROMPT,
+  CUSTOMER_SYSTEM_PROMPT,
+  appendEscalationEvent,
+  readEscalationEvents,
+  foldTickets,
   type ChatMessage,
   type Prompt,
+  type EscalationSink,
+  type EscalationInput,
+  type EscalationTicket,
+  type EscalationReason,
+  type ResolutionAction,
 } from '@plantbase/core';
 import {
   loadRagConfig,
@@ -264,6 +275,247 @@ async function ragGolden(): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// HF5 — ügyfélirányú PoC: ügyfélsegéd (`segit`) + eszkalációs jegysor (`sor`).
+// ---------------------------------------------------------------------------
+
+const TICKETS_DIR = 'tickets';
+
+// Ember-olvasható címkék a soron és a handoffon (a queue kód-kulcsaihoz).
+const REASON_LABEL: Record<EscalationReason, string> = {
+  out_of_scope: 'hatókörön kívüli (rendelés/panasz/fizetés/garancia)',
+  no_grounding: 'nincs fedő forrás a tudásbázisban',
+  ambiguous: 'kétértelmű kérés (tisztázás után is)',
+  commitment: 'kereskedelmi elköteleződés (félretétel/kedvezmény)',
+  human_requested: 'a vásárló kifejezetten embert kért',
+};
+
+const ACTION_LABEL: Record<ResolutionAction, string> = {
+  approved: 'jóváhagyva — ember átvette',
+  rejected: 'visszavonva — vissza az AI-nak',
+  answered: 'kolléga válaszolt a vásárlónak',
+};
+
+// Fájl-alapú EscalationSink: a jegysorba ír (append-only JSONL, TICKETS_DIR), és a fordulóban
+// létrejött jegyeket gyűjti, hogy a session utána lefuttathassa az emberi handoffot. NEM ír DB-be —
+// az agent runSql-je read-only marad (a két DB-jog és a SELECT-guard sértetlen).
+class FileEscalationSink implements EscalationSink {
+  private readonly justCreated: EscalationTicket[] = [];
+
+  create(input: EscalationInput): EscalationTicket {
+    const ticket: EscalationTicket = {
+      ...input,
+      ticketId: `esc_${randomUUID().slice(0, 8)}`,
+      ts: new Date().toISOString(),
+      status: 'open',
+    };
+
+    appendEscalationEvent(
+      {
+        type: 'created',
+        ticketId: ticket.ticketId,
+        ts: ticket.ts,
+        reason: ticket.reason,
+        customerMessage: ticket.customerMessage,
+        summary: ticket.summary,
+        triedTools: ticket.triedTools,
+      },
+      TICKETS_DIR,
+    );
+
+    this.justCreated.push(ticket);
+
+    return ticket;
+  }
+
+  // A fordulóban létrejött jegyeket kiadja (és üríti) — ezekre fut a handoff.
+  drain(): EscalationTicket[] {
+    return this.justCreated.splice(0, this.justCreated.length);
+  }
+
+  // A kolléga döntését `resolved` eseményként a sorba írja (audit + a `sor` innen olvassa).
+  resolve(
+    ticketId: string,
+    action: ResolutionAction,
+    by: string,
+    note?: string,
+  ): void {
+    appendEscalationEvent(
+      {
+        type: 'resolved',
+        ticketId,
+        ts: new Date().toISOString(),
+        action,
+        by,
+        note,
+      },
+      TICKETS_DIR,
+    );
+  }
+}
+
+// Emberi jóváhagyási pont: az eszkalált jegy teljes kontextusát kiírja, majd a kolléga dönt.
+// Ez a demó „az eszkaláció tényleg embert hív" része — élő, begépelt emberi döntés.
+async function handleHandoff(
+  rl: ReturnType<typeof createRlPromises>,
+  sink: FileEscalationSink,
+  ticket: EscalationTicket,
+): Promise<void> {
+  console.log('\n────────────────────────────────────────────────────────');
+  console.log('🔔 ESZKALÁCIÓ — emberi jóváhagyás szükséges');
+  console.log(`   Jegy:            ${ticket.ticketId}`);
+  console.log(`   Ok:              ${REASON_LABEL[ticket.reason]}`);
+  console.log(`   Vásárló kérdése: „${ticket.customerMessage}"`);
+  console.log(`   AI összefoglaló: ${ticket.summary}`);
+
+  if (ticket.triedTools?.length) {
+    console.log(`   Próbált tool-ok: ${ticket.triedTools.join(', ')}`);
+  }
+
+  console.log('────────────────────────────────────────────────────────');
+
+  const choice = (
+    await rl.question(
+      'Kolléga döntése — [j]óváhagy+átvesz / [e]lutasít (vissza az AI-nak) / [v]álasz: ',
+    )
+  )
+    .trim()
+    .toLowerCase();
+
+  if (choice === 'v') {
+    const note = await rl.question('  Írd be a választ a vásárlónak: ');
+    sink.resolve(ticket.ticketId, 'answered', 'operator', note.trim());
+    console.log(`✅ Válasz naplózva, jegy ${ticket.ticketId} lezárva.\n`);
+
+    return;
+  }
+
+  if (choice === 'e') {
+    const note = await rl.question('  Indoklás (miért nem kell ember?): ');
+    sink.resolve(ticket.ticketId, 'rejected', 'operator', note.trim());
+    console.log(
+      `↩️  Eszkaláció visszavonva, jegy ${ticket.ticketId} lezárva.\n`,
+    );
+
+    return;
+  }
+
+  sink.resolve(ticket.ticketId, 'approved', 'operator');
+  console.log(`✅ Ember átvette, jegy ${ticket.ticketId} lezárva.\n`);
+}
+
+// `segit` — vásárlói (ügyfélirányú) session: 24/7 önkiszolgáló válasz + bizonytalanságnál eszkaláció.
+async function runCustomerAssist(): Promise<void> {
+  const rl = createRlPromises({ input: process.stdin, output: process.stdout });
+  const sink = new FileEscalationSink();
+  const history: ChatMessage[] = [];
+
+  console.log(
+    '🌱 Plantbase ügyfélsegéd — AI-asszisztenssel beszélsz (nem élő ügyintéző).',
+  );
+  console.log(
+    '   Kérdezz növényről, árról, készletről, gondozásról. Kilépés: exit\n',
+  );
+
+  try {
+    for (;;) {
+      const line = (await rl.question('te> ')).trim();
+
+      if (line === 'exit' || line === 'quit') {
+        break;
+      }
+
+      if (line.length === 0) {
+        continue;
+      }
+
+      const next: ChatMessage[] = [...history, { role: 'user', content: line }];
+      const { textStream, done } = streamChat(
+        next,
+        undefined,
+        CUSTOMER_SYSTEM_PROMPT,
+        sink,
+      );
+      // A done sosem maradhat kezeletlen (stream-hiba → a for-await a catch-be ugrik).
+      done.catch(() => undefined);
+
+      process.stdout.write('segéd> ');
+
+      try {
+        for await (const chunk of textStream) {
+          process.stdout.write(chunk);
+        }
+
+        process.stdout.write('\n');
+
+        const { messages, tokenBreakdown } = await done;
+        console.log(formatTokenBreakdown(tokenBreakdown));
+        history.splice(0, history.length, ...messages);
+      } catch (error) {
+        console.error(
+          `Hiba: ${error instanceof Error ? error.message : String(error)}`,
+        );
+
+        continue;
+      }
+
+      // Ha a forduló eszkalált, jön az emberi handoff (egy vagy több jegyre).
+      for (const ticket of sink.drain()) {
+        await handleHandoff(rl, sink, ticket);
+      }
+    }
+  } finally {
+    rl.close();
+  }
+
+  console.log('Viszlát!');
+}
+
+// `sor` — az eszkalációs jegysor read-only nézete (audit + a mérési terv adatforrása).
+function showQueue(): void {
+  const tickets = foldTickets(readEscalationEvents(TICKETS_DIR));
+
+  if (tickets.length === 0) {
+    console.log('A jegysor üres (nincs eszkaláció).');
+
+    return;
+  }
+
+  const open = tickets.filter((t) => t.status === 'open');
+  const resolved = tickets.filter((t) => t.status === 'resolved');
+
+  console.log(
+    `Eszkalációs jegysor: ${tickets.length} összes · ${open.length} nyitott · ${resolved.length} lezárt`,
+  );
+
+  const byReason = new Map<EscalationReason, number>();
+
+  for (const t of tickets) {
+    byReason.set(t.reason, (byReason.get(t.reason) ?? 0) + 1);
+  }
+
+  console.log('\nOk szerint:');
+
+  for (const [reason, count] of byReason) {
+    console.log(`  ${count}×  ${REASON_LABEL[reason]}`);
+  }
+
+  console.log('\nJegyek:');
+
+  for (const t of tickets) {
+    const badge = t.status === 'open' ? '🟠 NYITOTT' : '🟢 LEZÁRT ';
+    console.log(`  ${badge}  ${t.ticketId}  [${REASON_LABEL[t.reason]}]`);
+    console.log(`     „${t.customerMessage}"`);
+
+    if (t.resolution) {
+      const note = t.resolution.note ? ` — ${t.resolution.note}` : '';
+      console.log(
+        `     → ${ACTION_LABEL[t.resolution.action]} (${t.resolution.by})${note}`,
+      );
+    }
+  }
+}
+
 const program = new Command();
 
 program
@@ -285,6 +537,31 @@ program
   .description('Interaktív mód (kilépés: exit)')
   .action(() => {
     runInteractive(program.opts().showPrompt === true);
+  });
+
+program
+  .command('segit')
+  .description(
+    'Ügyfélsegéd — vásárlói session önkiszolgálással és emberi eszkalációval (kilépés: exit)',
+  )
+  .action(async () => {
+    try {
+      await runCustomerAssist();
+    } catch (error) {
+      console.error(
+        `Hiba (segit): ${error instanceof Error ? error.message : String(error)}`,
+      );
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('sor')
+  .description(
+    'Az eszkalációs jegysor megjelenítése (nyitott/lezárt jegyek, ok szerint)',
+  )
+  .action(() => {
+    showQueue();
   });
 
 program

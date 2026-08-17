@@ -1,5 +1,7 @@
 # Logs
 logs
+# Eszkalációs jegysor (HF5) — vásárlói üzenetet tartalmazhat (PII), nem verziózzuk
+tickets
 *.log
 npm-debug.log*
 yarn-debug.log*
