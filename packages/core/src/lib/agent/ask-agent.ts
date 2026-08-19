@@ -10,6 +10,7 @@ import { SYSTEM_PROMPT } from './system-prompt.js';
 import { logInteraction } from '../shared/logger.js';
 import { resolveModel } from './provider.js';
 import { buildTools, type ToolCall } from '../tools/agent-tools.js';
+import type { EscalationSink } from '../tools/escalate-to-human.js';
 import {
   UsageTracker,
   UsageFn,
@@ -91,6 +92,8 @@ function foldAgentUsage(
 export async function askAgent(
   input: unknown,
   model: LanguageModel = resolveModel(),
+  system: string = SYSTEM_PROMPT,
+  escalateSink?: EscalationSink,
 ): Promise<AgentResult> {
   const prompt = buildPrompt(input);
   const collector: ToolCall[] = [];
@@ -98,9 +101,9 @@ export async function askAgent(
 
   const result = await generateText({
     model,
-    system: prompt.system,
+    system,
     messages: prompt.messages,
-    tools: buildTools(collector, tracker),
+    tools: buildTools(collector, tracker, escalateSink),
     stopWhen: stepCountIs(MAX_STEPS),
   });
 
@@ -110,7 +113,7 @@ export async function askAgent(
   logInteraction({
     timestamp: new Date().toISOString(),
     model: modelId(model),
-    system: prompt.system,
+    system,
     messages: [...prompt.messages, ...result.response.messages],
     answer: result.text,
     usage,
@@ -139,15 +142,17 @@ export interface ChatStream {
 export function streamChat(
   messages: ChatMessage[],
   model: LanguageModel = resolveModel(),
+  system: string = SYSTEM_PROMPT,
+  escalateSink?: EscalationSink,
 ): ChatStream {
   const collector: ToolCall[] = [];
   const tracker = new UsageTracker();
 
   const result = streamText({
     model,
-    system: SYSTEM_PROMPT,
+    system,
     messages,
-    tools: buildTools(collector, tracker),
+    tools: buildTools(collector, tracker, escalateSink),
     stopWhen: stepCountIs(MAX_STEPS),
   });
 
@@ -165,7 +170,7 @@ export function streamChat(
     logInteraction({
       timestamp: new Date().toISOString(),
       model: modelId(model),
-      system: SYSTEM_PROMPT,
+      system,
       messages: fullMessages,
       answer,
       usage,
